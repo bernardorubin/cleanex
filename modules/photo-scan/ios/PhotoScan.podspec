@@ -4,7 +4,7 @@ Pod::Spec.new do |s|
   s.summary        = 'On-device photo library inventory and similarity via PhotoKit + Vision.'
   s.description    = 'Byte sizes, subtypes and Vision feature-print pair detection for the photo library.'
   s.author         = ''
-  s.homepage       = 'https://github.com/bernardorubin/limpio'
+  s.homepage       = 'https://github.com/bernardorubin/make-room'
   s.platforms      = { :ios => '17.0' }
   s.source         = { git: '' }
   s.static_framework = true

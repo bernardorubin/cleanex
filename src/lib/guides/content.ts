@@ -1,7 +1,7 @@
 /**
  * Static walkthroughs for what the iOS sandbox puts out of reach.
  *
- * Every step here is something the user must do themselves. Limpio cannot tap
+ * Every step here is something the user must do themselves. Make Room cannot tap
  * these for them, and saying so plainly is the point — implying coverage we do
  * not have is the failure mode this content exists to prevent.
  */
@@ -19,7 +19,7 @@ export const GUIDES: Guide[] = [
     id: 'whatsapp',
     title: 'Clear WhatsApp photos',
     blurb: 'Usually the biggest hidden pile on a full phone.',
-    why: 'WhatsApp keeps every photo and video anyone ever sent you in its own private storage. Those do not show up in your Photos app, and no other app — including Limpio — is allowed to look inside or delete them. WhatsApp has its own tool for this, buried a few taps deep.',
+    why: 'WhatsApp keeps every photo and video anyone ever sent you in its own private storage. Those do not show up in your Photos app, and no other app — including Make Room — is allowed to look inside or delete them. WhatsApp has its own tool for this, buried a few taps deep.',
     steps: [
       'Open WhatsApp.',
       'Tap Settings at the bottom right.',

@@ -1,4 +1,4 @@
-"""Generate Limpio's app icon: a breaker switch thrown to ON.
+"""Generate Make Room's app icon: a breaker switch thrown to ON.
 
 Pure stdlib — renders at 4x and box-downsamples for antialiasing, then encodes
 a PNG by hand. No dependencies, fully deterministic.

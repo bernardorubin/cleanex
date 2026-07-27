@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 
-const IDENTIFIER = 'limpio-weekly-review';
+const IDENTIFIER = 'make-room-weekly-review';
 
 /**
  * A local notification: no APNs certificates, no server, no device tokens.

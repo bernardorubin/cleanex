@@ -91,7 +91,7 @@ export default function CleanScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic">
-        <Text style={[styles.title, { color: palette.ink }]}>Limpio</Text>
+        <Text style={[styles.title, { color: palette.ink }]}>Make Room</Text>
 
         <Nameplate usedBytes={disk.usedBytes} totalBytes={disk.totalBytes} />
 
@@ -175,12 +175,12 @@ function PermissionPrimer({ onContinue }: { onContinue: () => void }) {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.panel }]}>
       <View style={styles.primer}>
-        <Text style={[styles.title, { color: palette.ink }]}>Limpio</Text>
+        <Text style={[styles.title, { color: palette.ink }]}>Make Room</Text>
         <Text style={[styles.primerLead, { color: palette.ink }]}>
           Your phone is probably storing the same photo several times over.
         </Text>
         <Text style={[styles.primerBody, { color: palette.inkSecondary }]}>
-          To find those copies, Limpio needs to look at your photos. It all
+          To find those copies, Make Room needs to look at your photos. It all
           happens on your phone. Nothing is uploaded, nothing is sent anywhere,
           and nothing is deleted until you say so.
         </Text>
@@ -198,10 +198,10 @@ function PermissionDenied() {
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.panel }]}>
       <View style={styles.primer}>
         <Text style={[styles.primerLead, { color: palette.ink }]}>
-          Limpio cannot see your photos yet.
+          Make Room cannot see your photos yet.
         </Text>
         <Text style={[styles.primerBody, { color: palette.inkSecondary }]}>
-          Open the Settings app, find Limpio in the list, tap Photos, and choose
+          Open the Settings app, find Make Room in the list, tap Photos, and choose
           All Photos. Then come back here.
         </Text>
       </View>

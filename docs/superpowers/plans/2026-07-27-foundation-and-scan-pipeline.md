@@ -1,4 +1,4 @@
-# Limpio — Plan 1: Foundation & Scan Pipeline Implementation Plan
+# Make Room — Plan 1: Foundation & Scan Pipeline Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -10,7 +10,7 @@
 
 **Reference blueprint:** `/Users/bern/Desktop/apps/personal/100workout` — same SDK, same `src/` layout, and its `modules/expo-body-pose` is an existing local Vision-backed Swift module. Match its conventions.
 
-**Spec:** `docs/superpowers/specs/2026-07-27-limpio-design.md`
+**Spec:** `docs/superpowers/specs/2026-07-27-make-room-design.md`
 
 ## Global Constraints
 
@@ -29,7 +29,7 @@
 ## File Structure
 
 ```
-limpio/
+make-room/
   app.json                              Expo config, iOS 17 target, NSPhotoLibraryUsageDescription
   package.json
   tsconfig.json                         strict, @/ and @modules/ aliases
@@ -67,7 +67,7 @@ limpio/
 
 ---
 
-### Task 1: Scaffold Limpio and lock tooling
+### Task 1: Scaffold Make Room and lock tooling
 
 **Files:**
 - Create: `package.json`, `app.json`, `tsconfig.json`, `jest.config.js`, `src/app/_layout.tsx`, `src/app/index.tsx`, `.gitignore`
@@ -83,20 +83,20 @@ The repo already contains `docs/` and `.git`, and `create-expo-app` refuses a no
 
 ```bash
 cd /Users/bern/Desktop/apps/personal
-pnpm dlx create-expo-app@latest limpio-scaffold --template default
-cd limpio-scaffold
+pnpm dlx create-expo-app@latest make-room-scaffold --template default
+cd make-room-scaffold
 rm -rf .git
 # move everything including dotfiles, without clobbering docs/ or .git
 shopt -s dotglob
-mv * ../limpio/
-cd ../limpio
-rmdir ../limpio-scaffold
+mv * ../make-room/
+cd ../make-room
+rmdir ../make-room-scaffold
 ```
 
 - [ ] **Step 2: Move routes under `src/` to match the blueprint**
 
 ```bash
-cd /Users/bern/Desktop/apps/personal/limpio
+cd /Users/bern/Desktop/apps/personal/make-room
 mkdir -p src
 mv app src/app
 rm -rf src/app/\(tabs\)          # tabs arrive in Plan 2
@@ -120,7 +120,7 @@ import { ScrollView, Text } from 'react-native';
 export default function DevScreen() {
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic">
-      <Text style={{ fontSize: 24, padding: 16 }}>Limpio</Text>
+      <Text style={{ fontSize: 24, padding: 16 }}>Make Room</Text>
     </ScrollView>
   );
 }
@@ -171,19 +171,19 @@ Set the identity, the iOS 17 target, and the photo permission string. The usage 
 ```json
 {
   "expo": {
-    "name": "Limpio",
-    "slug": "limpio",
+    "name": "Make Room",
+    "slug": "make-room",
     "owner": "bernardorubin",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "limpio",
+    "scheme": "make-room",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.bernardorubin.limpio",
+      "bundleIdentifier": "com.bernardorubin.make-room",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Limpio looks through your photos to find copies and big files you can safely delete. Your photos never leave your phone."
+        "NSPhotoLibraryUsageDescription": "Make Room looks through your photos to find copies and big files you can safely delete. Your photos never leave your phone."
       }
     },
     "plugins": [
@@ -233,13 +233,13 @@ Expected: 1 test passes, no type errors.
 - [ ] **Step 10: Verify the app builds on device**
 
 Run: `pnpm ios`
-Expected: app launches on simulator showing "Limpio".
+Expected: app launches on simulator showing "Make Room".
 
 - [ ] **Step 11: Commit**
 
 ```bash
 git add -A
-git commit -m "Scaffold Limpio Expo app with strict TS and jest"
+git commit -m "Scaffold Make Room Expo app with strict TS and jest"
 ```
 
 ---
@@ -257,7 +257,7 @@ git commit -m "Scaffold Limpio Expo app with strict TS and jest"
 - [ ] **Step 1: Create the module scaffold**
 
 ```bash
-cd /Users/bern/Desktop/apps/personal/limpio
+cd /Users/bern/Desktop/apps/personal/make-room
 mkdir -p modules/photo-scan/ios modules/photo-scan/src
 ```
 
@@ -281,7 +281,7 @@ Pod::Spec.new do |s|
   s.summary        = 'On-device photo library inventory and similarity via PhotoKit + Vision.'
   s.description    = 'Byte sizes, subtypes and Vision feature-print clustering for the photo library.'
   s.author         = ''
-  s.homepage       = 'https://github.com/bernardorubin/limpio'
+  s.homepage       = 'https://github.com/bernardorubin/make-room'
   s.platforms      = { :ios => '17.0' }
   s.source         = { git: '' }
   s.static_framework = true
@@ -381,7 +381,7 @@ export default function DevScreen() {
 
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" style={{ padding: 16 }}>
-      <Text style={{ fontSize: 24 }}>Limpio</Text>
+      <Text style={{ fontSize: 24 }}>Make Room</Text>
       <Text style={{ marginVertical: 12 }}>Permission: {status}</Text>
       <Button
         title="Request photo access"
@@ -631,7 +631,7 @@ export default function DevScreen() {
 
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" style={{ padding: 16 }}>
-      <Text style={{ fontSize: 24 }}>Limpio</Text>
+      <Text style={{ fontSize: 24 }}>Make Room</Text>
       <Text style={{ marginVertical: 12 }}>Permission: {status}</Text>
       <Button title="Request access" onPress={async () => setStatus(await requestPhotoPermission())} />
       <Button title="Run inventory benchmark" onPress={runBenchmark} />
@@ -1658,7 +1658,7 @@ type Row = {
 };
 
 export async function openCache(): Promise<SQLite.SQLiteDatabase> {
-  const db = await SQLite.openDatabaseAsync(`limpio-v${SCAN_SCHEMA_VERSION}.db`);
+  const db = await SQLite.openDatabaseAsync(`make-room-v${SCAN_SCHEMA_VERSION}.db`);
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS assets (
@@ -1747,7 +1747,7 @@ export async function saveClusters(
   }
 }
 
-/** Drops cached rows for assets the user deleted outside Limpio. */
+/** Drops cached rows for assets the user deleted outside Make Room. */
 export async function pruneMissing(
   db: SQLite.SQLiteDatabase,
   liveIds: string[],

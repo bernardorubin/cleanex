@@ -15,7 +15,7 @@ type Row = {
 };
 
 export async function openCache(): Promise<SQLite.SQLiteDatabase> {
-  const db = await SQLite.openDatabaseAsync(`limpio-v${SCAN_SCHEMA_VERSION}.db`);
+  const db = await SQLite.openDatabaseAsync(`make-room-v${SCAN_SCHEMA_VERSION}.db`);
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS assets (
@@ -122,7 +122,7 @@ export async function saveClusters(
   }
 }
 
-/** Drops cached rows for assets the user deleted outside Limpio. */
+/** Drops cached rows for assets the user deleted outside Make Room. */
 export async function pruneMissing(
   db: SQLite.SQLiteDatabase,
   liveIds: string[],

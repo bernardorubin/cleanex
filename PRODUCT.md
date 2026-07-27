@@ -33,7 +33,7 @@ because reviewing last week's photos became a small weekly habit.
 ## Positioning
 
 Every competitor is a photo-library cleaner presented as a storage tool, built
-for people who already understand storage. Limpio does the same scanning work
+for people who already understand storage. Make Room does the same scanning work
 and is honest about what it cannot reach, then spends its design budget on
 being comprehensible to someone who finds the iPhone's own storage screen
 confusing.
@@ -81,9 +81,15 @@ Spanish version is plausible given the name and audience but is not committed.
 
 ## Brand Commitments
 
-Name: **Limpio** (Spanish for "clean"). Verified unclaimed on the US, Spain and
-Mexico storefronts as of 2026-07-27. Chosen to read warmly to a bilingual
-older audience rather than as a technical utility.
+Name: **Make Room**. Two everyday words that state the outcome, chosen so a
+non-technical reader understands the app without decoding a metaphor or
+learning a brand. Also matches what people actually search for.
+
+An earlier name, Limpio, was abandoned on 2026-07-27: the string was already
+reserved in App Store Connect. Note for any future rename — the iTunes Search
+API only lists *published* apps, so it cannot detect reservations. Single
+dictionary words are heavily squatted; two-word names survive. Confirm any
+candidate in App Store Connect before committing to it.
 
 Free forever. No monetization, no paywall, no subscription, no upsell. This is
 a deliberate stance against a category built on weekly subscriptions sold to
