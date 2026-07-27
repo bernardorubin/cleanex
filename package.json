@@ -21,6 +21,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.1",
     "expo-system-ui": "~57.0.1",
+    "expo-updates": "^57.0.10",
     "expo-web-browser": "~57.0.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -47,7 +48,12 @@
     "lint": "expo lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prebuild": "expo prebuild --platform ios --clean",
+    "build:ios": "eas build --platform ios --profile production",
+    "build:preview": "eas build --platform ios --profile preview",
+    "submit:ios": "eas submit --platform ios",
+    "ota:update": "eas update"
   },
   "private": true,
   "pnpm": {
