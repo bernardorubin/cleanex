@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Make Room",
-    "slug": "make-room",
+    "slug": "limpio",
     "owner": "bernardorubin",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -58,6 +58,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/3c35e02c-4f5c-4e38-b2ac-b37381a111ac"
-    }
+    },
+    "android": {}
   }
 }
