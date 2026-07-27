@@ -3,7 +3,7 @@
     "name": "Make Room",
     "slug": "limpio",
     "owner": "bernardorubin",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "makeroom",
@@ -14,7 +14,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "Make Room looks through your photos to find copies and big files you can safely delete. Your photos never leave your phone."
-      }
+      },
+      "buildNumber": "10"
     },
     "web": {
       "output": "static",
