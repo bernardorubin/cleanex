@@ -108,7 +108,10 @@ TypeScript → categories, sorting, selection, copy, all UI
 ```
 
 Feature print vectors are several KB each and must never cross the bridge — 30k photos would
-be hundreds of MB. Clustering therefore happens natively and only cluster IDs are returned.
+be hundreds of MB. Native code therefore computes distances and returns only the *pairs* that
+fall below the similarity threshold, which is a tiny payload. Grouping those pairs into
+clusters is transitive logic that can silently merge unrelated photos, so it lives in
+TypeScript where it is unit-tested.
 
 **File size caveat:** PhotoKit has no public file-size property. The standard approach is a
 KVC read on `PHAssetResource`, which every cleaner app ships and which passes review, but is
@@ -266,7 +269,7 @@ device, mocks or fixtures are needed. Jest, already used in all three blueprint 
 |---|---|
 | `pickKeeper(group)` | The one rule that can lose photos. Never empty, never the whole group, prefers highest resolution → largest file → oldest. |
 | `groupExactDuplicates(assets)` | Identical size+dimensions group together; near-misses do not. |
-| `clusterBySimilarity(distances)` | Threshold behaviour at the boundary; clustering is transitive-safe. |
+| `clusterBySimilarity(assets, pairs)` | Clustering is transitive-safe (A~B and B~C group all three), and a favourite never bridges two unrelated groups. Native code returns similarity *pairs*; grouping them happens in TypeScript so this logic is testable. |
 | `categorize(asset)` | Screenshot / screen recording / video / no-camera-EXIF land in the right bucket. |
 | `estimateFreed(selection)` | Sums correctly and never double-counts an asset across overlapping categories. |
 
