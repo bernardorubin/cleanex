@@ -1,5 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import {
+  AccessibilityInfo,
+  Alert,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { Stack } from 'expo-router';
 import { playVideo } from '@modules/photo-scan';
 
@@ -41,6 +48,10 @@ export default function BrowseScreen() {
   );
 
   function toggle(id: string) {
+    // A fresh selection is a new action — the last delete's receipt should
+    // not keep eating the top of the screen (and the grid's top clearance)
+    // for the rest of the session.
+    setFreed(null);
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
@@ -57,7 +68,14 @@ export default function BrowseScreen() {
     // largest-first, so it is exactly where an iCloud "Optimize iPhone
     // Storage" shortfall is biggest — the same wording as the Clean tab so
     // the two screens cannot drift.
-    setFreed(freedMessage(outcome.estimatedBytes, outcome.actualBytes));
+    const message = freedMessage(outcome.estimatedBytes, outcome.actualBytes);
+    setFreed(message);
+    // The receipt is a silent, absolutely-positioned card after a 30,000-cell
+    // list in accessibility order — VoiceOver would neither speak it nor
+    // reliably reach it by swipe without this. Queued: it lands the same
+    // frame as the confirmation sheet dismissing and the grid re-rendering,
+    // both of which compete for the speech channel.
+    AccessibilityInfo.announceForAccessibilityWithOptions(message, { queue: true });
     await rescan();
   }
 

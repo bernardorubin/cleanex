@@ -53,8 +53,12 @@ export function SelectionFooter({
     const favouriteCountChanged = favouriteCount !== previous.current.favouriteCount;
 
     if (count > 0 && (justAppeared || favouriteCountChanged)) {
-      AccessibilityInfo.announceForAccessibility(
+      // Queued: posted the same frame as the toggled cell's own label/state
+      // change, which competes for the speech channel and can silently drop
+      // an unqueued announcement.
+      AccessibilityInfo.announceForAccessibilityWithOptions(
         selectionAnnouncement(count, bytes, favouriteCount),
+        { queue: true },
       );
     }
 
