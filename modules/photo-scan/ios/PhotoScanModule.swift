@@ -2,6 +2,7 @@ import ExpoModulesCore
 import Photos
 import Vision
 import UIKit
+import AVKit
 
 public class PhotoScanModule: Module {
   public func definition() -> ModuleDefinition {
@@ -163,6 +164,47 @@ public class PhotoScanModule: Module {
         ])
       }
     }
+
+    // MARK: - Playback
+
+    /// Presents the system player — the same one the user already knows from
+    /// the Photos app. Recognition is the whole accessibility strategy here, so
+    /// a bespoke player would be a downgrade even if it were less work.
+    AsyncFunction("playVideo") { (assetId: String, promise: Promise) in
+      DispatchQueue.main.async {
+        let fetched = PHAsset.fetchAssets(withLocalIdentifiers: [assetId], options: nil)
+        guard let asset = fetched.firstObject, asset.mediaType == .video else {
+          promise.resolve(false)
+          return
+        }
+
+        let options = PHVideoRequestOptions()
+        options.deliveryMode = .automatic
+        // The one place network access is allowed. This fetches the user's own
+        // video from their own iCloud library because they tapped it. Without
+        // it, every video fails to play on an optimized-storage phone.
+        options.isNetworkAccessAllowed = true
+
+        PHImageManager.default().requestPlayerItem(
+          forVideo: asset,
+          options: options
+        ) { item, _ in
+          DispatchQueue.main.async {
+            guard let item, let top = Self.topViewController() else {
+              promise.resolve(false)
+              return
+            }
+
+            let player = AVPlayer(playerItem: item)
+            let controller = AVPlayerViewController()
+            controller.player = player
+
+            top.present(controller, animated: true) { player.play() }
+            promise.resolve(true)
+          }
+        }
+      }
+    }
   }
 
   // MARK: - Tuning constants
@@ -189,9 +231,25 @@ public class PhotoScanModule: Module {
     }
   }
 
+  /// The frontmost presented controller. Presenting on the root while a sheet
+  /// is already up silently does nothing, so walk the chain first.
+  private static func topViewController() -> UIViewController? {
+    let scene = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .first { $0.activationState == .foregroundActive }
+
+    guard var top = scene?.keyWindow?.rootViewController else { return nil }
+    while let presented = top.presentedViewController { top = presented }
+    return top
+  }
+
   /// Photos captured by this device's camera are named `IMG_1234.HEIC`.
-  /// Anything saved from another app keeps its source filename — WhatsApp
-  /// writes `IMG-20240115-WA0001.jpg`, downloads and AirDrops keep their own.
+  /// Anything saved from another app keeps whatever name that app gave it —
+  /// WhatsApp on iOS assigns random alphanumeric or UUID-style names
+  /// (`AJXQ8273.JPG`, `7d3cd6be-….jpeg`), AirDrops and downloads keep their own.
+  ///
+  /// Note: `IMG-20240115-WA0001.jpg` is the *Android* WhatsApp pattern and does
+  /// not appear on iOS. There is no "WhatsApp" album on iOS either.
   ///
   /// This is a filename heuristic, not proof. It is deliberately chosen over
   /// reading EXIF headers: that needs a second undocumented KVC key for the

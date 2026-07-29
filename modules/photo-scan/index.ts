@@ -4,6 +4,7 @@ export {
   inventory,
   findSimilarPairs,
   deleteAssets,
+  playVideo,
   type PhotoPermission,
   type InventoryResult,
   type SimilarPairsResult,

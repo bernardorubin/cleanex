@@ -20,6 +20,7 @@ type NativeModule = {
   inventory(): Promise<InventoryResult>;
   findSimilarPairs(assetIds: string[]): Promise<SimilarPairsResult>;
   deleteAssets(assetIds: string[]): Promise<DeleteResult>;
+  playVideo(assetId: string): Promise<boolean>;
 };
 
 const native = requireNativeModule<NativeModule>('PhotoScan');
@@ -46,4 +47,13 @@ export function findSimilarPairs(assetIds: string[]): Promise<SimilarPairsResult
  */
 export function deleteAssets(assetIds: string[]): Promise<DeleteResult> {
   return native.deleteAssets(assetIds);
+}
+
+/**
+ * Presents the system video player full screen. Resolves false when the asset
+ * is gone, is not a video, or no controller was available to present from —
+ * all normal outcomes, never thrown.
+ */
+export function playVideo(assetId: string): Promise<boolean> {
+  return native.playVideo(assetId);
 }
