@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Paths } from 'expo-file-system';
 import { getPhotoPermission, requestPhotoPermission } from '@modules/photo-scan';
 import type { PhotoPermission } from '@modules/photo-scan';
@@ -42,7 +42,19 @@ export function useScan(): ScanState {
   const [assetCount, setAssetCount] = useState(0);
   const [disk, setDisk] = useState<Disk>(readDisk);
 
+  // Identity for the run currently allowed to write state. Runs cannot be
+  // cancelled — runScan is a chain of awaits across the bridge — so a
+  // superseded run keeps going to completion in the background. Everything it
+  // reports after being superseded is stale by definition, including its
+  // failure: two runs sharing one SQLite connection make the second BEGIN
+  // throw, and without this the loser's catch stamped 'failed' over the
+  // winner's perfectly good 'ready' and blanked every screen that gates on it.
+  const runId = useRef(0);
+
   const scan = useCallback(async () => {
+    const id = (runId.current += 1);
+    const isCurrent = () => runId.current === id;
+
     setPhase('scanning');
     // Tracks whether this run has actually landed a fresh `result` yet. Only
     // 'categorized' and 'similarity' progress carry one — 'inventory' does
@@ -53,6 +65,7 @@ export function useScan(): ScanState {
     let landedFreshResult = false;
     try {
       await runScan((progress) => {
+        if (!isCurrent()) return;
         if (progress.phase === 'inventory') {
           setAssetCount(progress.assetCount);
           return;
@@ -71,19 +84,22 @@ export function useScan(): ScanState {
       // later (e.g. the similarity pass fails) keeps whatever phase the
       // progress callback already set — that result is current, just less
       // refined, so there is nothing to fail.
-      if (!landedFreshResult) setPhase('failed');
+      if (!landedFreshResult && isCurrent()) setPhase('failed');
     } finally {
-      setDisk(readDisk());
-      if (landedFreshResult) setPhase('ready');
+      if (isCurrent()) {
+        setDisk(readDisk());
+        if (landedFreshResult) setPhase('ready');
+      }
     }
   }, []);
 
   const request = useCallback(async () => {
+    // Only sets permission. The effect below keys on it and starts the scan
+    // itself; starting one here too ran two full-library scans concurrently on
+    // the most latency-sensitive tap in the product.
     const granted = await requestPhotoPermission();
     setPermission(granted);
-    if (granted === 'granted' || granted === 'limited') await scan();
-    else setPhase('denied');
-  }, [scan]);
+  }, []);
 
   const rescan = useCallback(async () => {
     setDisk(readDisk());
