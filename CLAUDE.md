@@ -17,13 +17,18 @@ accuracy but adds a concept loses.
 
 | | |
 |---|---|
-| Tests | `pnpm test` (jest, 46 tests, no device needed) |
+| Tests | `pnpm test` (jest, 80 tests, no device needed) |
 | Types | `pnpm typecheck` |
 | Lint | `pnpm lint` |
 | Build | `pnpm build:ios` (EAS, production profile) |
 | Publish | **never run these** — `pnpm submit:ios`, `pnpm ota:update` are Bernardo's |
 
 `pnpm test` and `pnpm typecheck` must both pass before any commit.
+
+**`pnpm lint` is not a usable gate.** There is no working ESLint config in this
+project; running it (`expo lint`) auto-installs `eslint` + `eslint-config-expo`
+and generates `eslint.config.js`, which violates the no-new-dependencies rule.
+The real gate is `pnpm test` and `pnpm typecheck` only.
 
 ## Architecture
 
@@ -48,6 +53,20 @@ library would be hundreds of MB. Distances are computed in Swift.
 **Two-phase scan.** Phase 1 (metadata) renders a real number in seconds; phase 2
 (Vision) refines it upward. The caller renders twice rather than showing a blank
 progress bar. Preserve this — the audience abandons anything that looks like work.
+
+**One scan, shared.** `useScan` holds state per caller and starts a scan on
+mount, so calling it from each screen re-scans the whole library on every
+navigation. It is mounted once in `ScanProvider` (`src/app/_layout.tsx`) and
+every screen reads it via `useScanState()`. **Never call `useScan` directly from
+a screen.**
+
+**`ScanPhase` includes `'failed'`.** A scan that dies before landing a fresh
+`result` sets it, and screens must gate stale UI on it — the Clean tab and
+`/browse` both do. The reason is specific: `disk` is refreshed immediately on
+rescan while `result` is not, so any surface that renders `result` while the
+phases disagree shows pre-deletion data. This already caused a wrong storage
+figure on the capacity plate and a live armed "Free up X GB" button after a
+failed scan.
 
 ## Conventions
 
@@ -141,6 +160,25 @@ he actually saw before changing any of them.
   `7d3cd6be-….jpeg`), so the heuristic still classifies them as not-camera, but
   for a different reason than the comment states. A stronger signal for a future
   pass is the absence of the `{MakerApple}` EXIF dictionary.
+- **`FlatList` at scale.** `src/components/media-browser-grid.tsx` pre-chunks
+  rows so `getItemLayout` is exact, but it has never run against a real library.
+  If it stutters, FlashList becomes a dependency conversation — ask first.
+- **Video poster frames.** The browser assumes `expo-image` renders a poster
+  frame for a video's `ph://` URI. If cells are blank, the fallback is a native
+  thumbnail function on the photo-scan module.
+- **The 200 MB noise floor** in `src/app/guide/[id].tsx` — a guess. It decides
+  whether the "You freed X" line appears at all.
+- **VoiceOver announcements** use `announceForAccessibilityWithOptions({ queue:
+  true })` because iOS drops same-frame announcements. Whether they are
+  actually spoken is unverified on device.
+- **Video playback audio** may be silenced by the hardware ringer switch — no
+  `AVAudioSession` category is set anywhere in the app. Suspected, unverified.
+
+## Known gaps
+
+`src/app/review.tsx` still discards its delete outcome and never reports real
+freed bytes, unlike the Clean tab and `/browse`, which both use `freedMessage`
+from `src/lib/scan/estimate.ts`. Deliberately left out of scope.
 
 ## Accessibility is a requirement, not a checkbox
 
@@ -156,8 +194,11 @@ including live progress and the freed-space result, Reduce Motion respected
 modules/photo-scan/ios/PhotoScanModule.swift   the only Swift
 src/lib/scan/                                   all product logic + tests
 src/lib/guides/content.ts                       honest walkthroughs for sandbox limits
+src/lib/scan/scan-context.tsx                   one scan shared by every screen
+src/lib/storage/breakdown.ts                    unreachable-storage figure + suppression
 src/lib/ui/theme.ts                             palette and type tokens
 src/app/(tabs)/                                 Clean, This Week, Guides
+src/app/browse.tsx                              everything on the phone, largest first
 src/components/                                 breaker panel components
 scripts/make-icon.py                            regenerates the icon, stdlib only
 docs/superpowers/specs/                         design specs
