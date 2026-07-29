@@ -16,6 +16,12 @@ export type Guide = {
   appScheme?: string;
   /** Button copy for that jump. Required whenever `appScheme` is set. */
   openLabel?: string;
+  /**
+   * The app's own name, as the user would say it. Required whenever
+   * `appScheme` is set — the jump fails when the app is not installed, and the
+   * screen has to name it rather than say "that app".
+   */
+  appName?: string;
 };
 
 export const GUIDES: Guide[] = [
@@ -33,9 +39,10 @@ export const GUIDES: Guide[] = [
       'Tap Select at the top right, then tick the videos and photos you do not need.',
       'Tap the bin icon at the bottom to delete them.',
     ],
-    note: 'Deleting here removes the photo from that chat. If you want to keep one, tap it and save it to your photos first.\n\nWhatsApp usually also saves a second copy of every photo into your Photos app, which means each one is taking up room twice. Turning off "Save to Camera Roll" in WhatsApp under Settings then Chats stops that happening again.',
+    note: 'Deleting here removes the photo from that chat. If you want to keep one, tap it and save it to your photos first.\n\nWhatsApp can also save a second copy of anything people send you into your Photos app, so the same picture takes up room twice. That happens when "Save to Camera Roll" is turned on in WhatsApp under Settings then Chats — it usually is. Turning it off stops it happening again.',
     appScheme: 'whatsapp://',
     openLabel: 'Open WhatsApp',
+    appName: 'WhatsApp',
   },
   {
     id: 'offload',

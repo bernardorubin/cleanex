@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  Alert,
+  AppState,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Paths } from 'expo-file-system';
 
 import { MainBreaker } from '@/components/main-breaker';
 import { findGuide } from '@/lib/guides/content';
-import { formatBytes } from '@/lib/scan/estimate';
+import { guideFreedMessage } from '@/lib/scan/messages';
 import { cardShadow, radius, space, stencil, usePalette } from '@/lib/ui/theme';
 
 /**
@@ -29,27 +38,43 @@ export default function GuideScreen() {
 
       const delta = (Paths.availableDiskSpace ?? 0) - freeBefore.current;
       freeBefore.current = null;
-      if (delta >= NOISE_FLOOR_BYTES) setRecovered(delta);
+      if (delta < NOISE_FLOOR_BYTES) return;
+
+      setRecovered(delta);
+      // This line appears mid-scroll on returning from another app, so
+      // VoiceOver neither focuses it nor speaks it. Queued because it lands
+      // the same frame as the app coming back to the foreground.
+      AccessibilityInfo.announceForAccessibilityWithOptions(
+        guideFreedMessage(delta),
+        { queue: true },
+      );
     });
 
     return () => subscription.remove();
   }, []);
 
-  async function openApp(scheme: string) {
+  async function openApp(scheme: string, appName: string) {
+    // A second trip that frees nothing must not leave the first trip's figure
+    // on screen as though it were this one's result.
+    setRecovered(null);
     freeBefore.current = Paths.availableDiskSpace ?? 0;
     try {
       await Linking.openURL(scheme);
     } catch {
-      // WhatsApp is not installed. Nothing to measure, and the written steps
-      // below still stand on their own.
+      // The app is not on this phone. Tapping the largest control on the
+      // screen and getting no response at all is the failure this avoids.
       freeBefore.current = null;
+      Alert.alert(
+        `${appName} is not on this phone`,
+        `Nothing is wrong. This guide only helps if you use ${appName}, so there is nothing here you need to do.`,
+      );
     }
   }
 
   if (!guide) {
     return (
       <View style={[styles.screen, styles.missing, { backgroundColor: palette.panel }]}>
-        <Text style={[styles.body, { color: palette.ink }]}>
+        <Text style={[styles.body, { color: palette.ink }]} maxFontSizeMultiplier={2}>
           That guide is no longer here.
         </Text>
       </View>
@@ -57,6 +82,7 @@ export default function GuideScreen() {
   }
 
   const scheme = guide.appScheme;
+  const appName = guide.appName;
 
   return (
     <>
@@ -65,19 +91,31 @@ export default function GuideScreen() {
         style={{ backgroundColor: palette.panel }}
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic">
-        <Text style={[styles.heading, { color: palette.ink }]}>{guide.title}</Text>
+        <Text
+          style={[styles.heading, { color: palette.ink }]}
+          maxFontSizeMultiplier={1.8}>
+          {guide.title}
+        </Text>
 
-        <Text style={[styles.body, { color: palette.inkSecondary }]}>{guide.why}</Text>
+        <Text
+          style={[styles.body, { color: palette.inkSecondary }]}
+          maxFontSizeMultiplier={2}>
+          {guide.why}
+        </Text>
 
         <View style={[styles.card, { backgroundColor: palette.card }, cardShadow]}>
-          <Text style={[styles.cardTitle, { color: palette.inkSecondary }]}>
+          <Text
+            style={[styles.cardTitle, { color: palette.inkSecondary }]}
+            maxFontSizeMultiplier={1.8}>
             Step by step
           </Text>
 
           {guide.steps.map((step, index) => (
             <View key={step} style={styles.step}>
               <View style={[styles.number, { borderColor: palette.amber }]}>
-                <Text style={[styles.numberText, { color: palette.amber }]}>
+                <Text
+                  style={[styles.numberText, { color: palette.amber }]}
+                  maxFontSizeMultiplier={1.4}>
                   {index + 1}
                 </Text>
               </View>
@@ -95,18 +133,23 @@ export default function GuideScreen() {
             <Text
               style={[styles.body, { color: palette.ink }]}
               maxFontSizeMultiplier={2}>
-              You freed {formatBytes(recovered)}.
+              {guideFreedMessage(recovered)}
             </Text>
           </View>
         ) : null}
 
-        {scheme && guide.openLabel ? (
-          <MainBreaker label={guide.openLabel} onPress={() => void openApp(scheme)} />
+        {scheme && appName && guide.openLabel ? (
+          <MainBreaker
+            label={guide.openLabel}
+            onPress={() => void openApp(scheme, appName)}
+          />
         ) : null}
 
         {guide.note ? (
           <View style={[styles.note, { borderColor: palette.rule }]}>
-            <Text style={[styles.noteText, { color: palette.inkSecondary }]}>
+            <Text
+              style={[styles.noteText, { color: palette.inkSecondary }]}
+              maxFontSizeMultiplier={2}>
               {guide.note}
             </Text>
           </View>
