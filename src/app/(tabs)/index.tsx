@@ -93,7 +93,14 @@ export default function CleanScreen() {
         contentInsetAdjustmentBehavior="automatic">
         <Text style={[styles.title, { color: palette.ink }]}>Make Room</Text>
 
-        <Nameplate usedBytes={disk.usedBytes} totalBytes={disk.totalBytes} />
+        <Nameplate
+          usedBytes={disk.usedBytes}
+          totalBytes={disk.totalBytes}
+          photoLibraryBytes={result?.assets.reduce(
+            (sum, a) => sum + a.sizeBytes,
+            0,
+          )}
+        />
 
         {freed ? (
           <View style={[styles.receipt, { borderColor: palette.rule }]}>

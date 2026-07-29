@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { otherStorageBytes } from '@/lib/storage/breakdown';
 import { formatBytes } from '@/lib/scan/estimate';
 import { radius, space, usePalette } from '@/lib/ui/theme';
 
@@ -8,19 +9,28 @@ const TICKS = 24;
 type Props = {
   usedBytes: number;
   totalBytes: number;
+  /** Summed asset sizes. Omit to hide the second reading entirely. */
+  photoLibraryBytes?: number;
 };
 
 /**
  * The capacity plate above the directory — a bevelled graphite plate with a
  * tick-marked gauge strip. A panel gauge reads in ticks, not as a ring.
  */
-export function Nameplate({ usedBytes, totalBytes }: Props) {
+export function Nameplate({ usedBytes, totalBytes, photoLibraryBytes }: Props) {
   const palette = usePalette();
 
   const ratio = totalBytes > 0 ? Math.min(usedBytes / totalBytes, 1) : 0;
   const litTicks = Math.round(ratio * TICKS);
   const nearlyFull = ratio >= 0.9;
   const freeBytes = Math.max(totalBytes - usedBytes, 0);
+
+  // Null whenever the figure cannot be trusted — an iCloud-optimized library
+  // reports more asset bytes than the phone actually holds.
+  const otherBytes =
+    photoLibraryBytes === undefined
+      ? null
+      : otherStorageBytes(usedBytes, photoLibraryBytes);
 
   return (
     <View
@@ -29,7 +39,11 @@ export function Nameplate({ usedBytes, totalBytes }: Props) {
       accessibilityRole="summary"
       accessibilityLabel={`${formatBytes(usedBytes)} of ${formatBytes(
         totalBytes,
-      )} used. ${formatBytes(freeBytes)} free.`}>
+      )} used. ${formatBytes(freeBytes)} free.${
+        otherBytes === null
+          ? ''
+          : ` ${formatBytes(otherBytes)} is used by apps and everything else, which Make Room cannot open.`
+      }`}>
       {/* Lighter top edge reads as bevelled metal under room light. */}
       <View style={[styles.bevel, { backgroundColor: palette.onGraphite }]} />
 
@@ -65,6 +79,9 @@ export function Nameplate({ usedBytes, totalBytes }: Props) {
 
       <Text style={[styles.free, { color: palette.onGraphite }]} maxFontSizeMultiplier={2}>
         {formatBytes(freeBytes)} free
+        {otherBytes === null
+          ? ''
+          : `  ·  ${formatBytes(otherBytes)} in apps and everything else`}
       </Text>
     </View>
   );
