@@ -6,7 +6,7 @@ import { MainBreaker } from '@/components/main-breaker';
 import { PhotoGrid } from '@/components/photo-grid';
 import { confirmDelete, deleteAndMeasure } from '@/lib/scan/delete';
 import { formatBytes } from '@/lib/scan/estimate';
-import { useScan } from '@/lib/scan/use-scan';
+import { useScanState } from '@/lib/scan/scan-context';
 import { CATEGORY_LABELS, type CategoryId } from '@/lib/scan/types';
 import { space, stencil, usePalette } from '@/lib/ui/theme';
 
@@ -17,7 +17,7 @@ import { space, stencil, usePalette } from '@/lib/ui/theme';
  */
 export default function ReviewScreen() {
   const palette = usePalette();
-  const { result, rescan } = useScan();
+  const { result, rescan } = useScanState();
 
   const allDeletable = useMemo(
     () => (result ? [...result.deletableIds] : []),

@@ -8,7 +8,7 @@ import { QuietLink } from '@/components/quiet-link';
 import { SwipeDeck } from '@/components/swipe-deck';
 import { confirmDelete, deleteAndMeasure } from '@/lib/scan/delete';
 import { formatBytes } from '@/lib/scan/estimate';
-import { useScan } from '@/lib/scan/use-scan';
+import { useScanState } from '@/lib/scan/scan-context';
 import {
   isReminderScheduled,
   scheduleWeeklyReminder,
@@ -20,7 +20,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function WeekScreen() {
   const palette = usePalette();
-  const { result, rescan } = useScan();
+  const { result, rescan } = useScanState();
   const [mode, setMode] = useState<'grid' | 'swipe'>('grid');
   const [armed, setArmed] = useState<Set<string>>(new Set());
   const [reminderOn, setReminderOn] = useState(false);

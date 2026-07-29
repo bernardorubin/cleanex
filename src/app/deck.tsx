@@ -6,7 +6,7 @@ import { MainBreaker } from '@/components/main-breaker';
 import { SwipeDeck } from '@/components/swipe-deck';
 import { confirmDelete, deleteAndMeasure } from '@/lib/scan/delete';
 import { formatBytes } from '@/lib/scan/estimate';
-import { useScan } from '@/lib/scan/use-scan';
+import { useScanState } from '@/lib/scan/scan-context';
 import { space, usePalette } from '@/lib/ui/theme';
 
 /**
@@ -16,7 +16,7 @@ import { space, usePalette } from '@/lib/ui/theme';
  */
 export default function DeckScreen() {
   const palette = usePalette();
-  const { result, rescan } = useScan();
+  const { result, rescan } = useScanState();
   const [armed, setArmed] = useState<Set<string>>(new Set());
   const [finished, setFinished] = useState(false);
 

@@ -9,7 +9,7 @@ import { Nameplate } from '@/components/nameplate';
 import { QuietLink } from '@/components/quiet-link';
 import { confirmDelete, deleteAndMeasure } from '@/lib/scan/delete';
 import { formatBytes } from '@/lib/scan/estimate';
-import { useScan } from '@/lib/scan/use-scan';
+import { useScanState } from '@/lib/scan/scan-context';
 import {
   AUTO_SAFE_CATEGORIES,
   CATEGORY_LABELS,
@@ -19,7 +19,7 @@ import { space, usePalette } from '@/lib/ui/theme';
 
 export default function CleanScreen() {
   const palette = usePalette();
-  const { permission, phase, result, assetCount, disk, request, rescan } = useScan();
+  const { permission, phase, result, assetCount, disk, request, rescan } = useScanState();
 
   // Which categories are armed. Safe ones start on; judgement calls start off.
   const [armed, setArmed] = useState<Set<CategoryId>>(new Set(AUTO_SAFE_CATEGORIES));
