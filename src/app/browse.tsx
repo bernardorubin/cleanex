@@ -88,7 +88,12 @@ export default function BrowseScreen() {
   }
 
   async function play(id: string) {
-    const opened = await playVideo(id);
+    let opened = false;
+    try {
+      opened = await playVideo(id);
+    } catch {
+      opened = false;
+    }
     if (!opened) {
       Alert.alert(
         'This video will not open',
