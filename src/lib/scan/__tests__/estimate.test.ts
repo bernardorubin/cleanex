@@ -1,4 +1,4 @@
-import { deletableIds, estimateFreed, formatBytes } from '@/lib/scan/estimate';
+import { deletableIds, estimateFreed, formatBytes, freedMessage } from '@/lib/scan/estimate';
 import type { AssetGroup } from '@/lib/scan/types';
 import { asset } from './fixtures';
 
@@ -56,4 +56,27 @@ test('formatBytes uses plain units a non-technical reader expects', () => {
   expect(formatBytes(4_200_000_000)).toBe('4.2 GB');
   expect(formatBytes(780_000_000)).toBe('780 MB');
   expect(formatBytes(0)).toBe('0 bytes');
+});
+
+test('freedMessage reports the plain figure when the estimate roughly held', () => {
+  expect(freedMessage(4_200_000_000, 4_000_000_000)).toBe('Freed 4.0 GB.');
+});
+
+test('freedMessage reports the plain figure when actual bytes exceed the estimate', () => {
+  expect(freedMessage(1_000_000_000, 1_200_000_000)).toBe('Freed 1.2 GB.');
+});
+
+test('freedMessage names iCloud once the shortfall passes a quarter of the estimate', () => {
+  expect(freedMessage(8_000_000_000, 900_000_000)).toBe(
+    'Freed 900 MB. Less than expected because iCloud was already storing most of these for you.',
+  );
+});
+
+test('freedMessage stays at the plain figure right at the quarter boundary', () => {
+  // Shortfall must exceed 25%, not merely reach it.
+  expect(freedMessage(1_000_000_000, 750_000_000)).toBe('Freed 750 MB.');
+});
+
+test('freedMessage handles a zero estimate without a false shortfall warning', () => {
+  expect(freedMessage(0, 0)).toBe('Freed 0 bytes.');
 });

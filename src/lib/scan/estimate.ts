@@ -39,3 +39,19 @@ export function formatBytes(bytes: number): string {
   if (bytes >= 1e3) return `${Math.round(bytes / 1e3)} KB`;
   return `${bytes} bytes`;
 }
+
+/**
+ * The post-delete receipt: predict with the estimate, report the truth. With
+ * iCloud "Optimize iPhone Storage" on, originals live in iCloud and only a
+ * placeholder sits on the phone, so freeing a "4 GB" video can recover far
+ * less locally. A large gap is the moment to name iCloud rather than quietly
+ * show a smaller number. Shared by every screen that deletes, so the wording
+ * cannot drift between them.
+ */
+export function freedMessage(estimatedBytes: number, actualBytes: number): string {
+  const shortfall = estimatedBytes - actualBytes;
+  const misleading = shortfall > estimatedBytes * 0.25;
+  return misleading
+    ? `Freed ${formatBytes(actualBytes)}. Less than expected because iCloud was already storing most of these for you.`
+    : `Freed ${formatBytes(actualBytes)}.`;
+}

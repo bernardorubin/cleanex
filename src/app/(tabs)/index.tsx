@@ -8,7 +8,7 @@ import { MainBreaker } from '@/components/main-breaker';
 import { Nameplate } from '@/components/nameplate';
 import { QuietLink } from '@/components/quiet-link';
 import { confirmDelete, deleteAndMeasure } from '@/lib/scan/delete';
-import { formatBytes } from '@/lib/scan/estimate';
+import { formatBytes, freedMessage } from '@/lib/scan/estimate';
 import { useScanState } from '@/lib/scan/scan-context';
 import {
   AUTO_SAFE_CATEGORIES,
@@ -64,14 +64,9 @@ export default function CleanScreen() {
     if (outcome.status === 'cancelled') return;
 
     // Predict with the estimate, report the truth. A large gap is the moment
-    // to explain iCloud rather than quietly show a smaller number.
-    const shortfall = outcome.estimatedBytes - outcome.actualBytes;
-    const misleading = shortfall > outcome.estimatedBytes * 0.25;
-    setFreed(
-      misleading
-        ? `Freed ${formatBytes(outcome.actualBytes)}. Less than expected because iCloud was already storing most of these for you.`
-        : `Freed ${formatBytes(outcome.actualBytes)}.`,
-    );
+    // to explain iCloud rather than quietly show a smaller number. Shared
+    // with /browse so the wording cannot drift between the two screens.
+    setFreed(freedMessage(outcome.estimatedBytes, outcome.actualBytes));
     await rescan();
   }
 

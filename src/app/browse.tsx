@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Alert, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Stack } from 'expo-router';
 import { playVideo } from '@modules/photo-scan';
 
 import { MediaBrowserGrid } from '@/components/media-browser-grid';
 import { SelectionFooter } from '@/components/selection-footer';
 import { countFavourites, favouriteNote, sortBySizeDesc } from '@/lib/scan/browse';
 import { confirmDelete, deleteAndMeasure } from '@/lib/scan/delete';
-import { estimateFreed, formatBytes } from '@/lib/scan/estimate';
+import { estimateFreed, formatBytes, freedMessage } from '@/lib/scan/estimate';
 import { useScanState } from '@/lib/scan/scan-context';
-import { space, usePalette } from '@/lib/ui/theme';
+import { cardShadow, radius, space, usePalette } from '@/lib/ui/theme';
 
 /**
  * Everything on the phone, largest first.
@@ -22,6 +22,8 @@ export default function BrowseScreen() {
   const { result, rescan, phase } = useScanState();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [footerHeight, setFooterHeight] = useState(0);
+  const [freed, setFreed] = useState<string | null>(null);
+  const [freedHeight, setFreedHeight] = useState(0);
 
   const assets = useMemo(
     () => (result ? sortBySizeDesc(result.assets) : []),
@@ -51,8 +53,12 @@ export default function BrowseScreen() {
     const outcome = await deleteAndMeasure([...selected], bytes);
     if (outcome.status === 'cancelled') return;
     setSelected(new Set());
+    // Predict with the estimate, report the truth. /browse is sorted
+    // largest-first, so it is exactly where an iCloud "Optimize iPhone
+    // Storage" shortfall is biggest — the same wording as the Clean tab so
+    // the two screens cannot drift.
+    setFreed(freedMessage(outcome.estimatedBytes, outcome.actualBytes));
     await rescan();
-    router.back();
   }
 
   function askToDelete() {
@@ -61,6 +67,20 @@ export default function BrowseScreen() {
     const note = favouriteNote(favouriteCount, selected.size);
 
     confirmDelete(selected.size, formatBytes(bytes), runDelete, note);
+  }
+
+  async function play(id: string) {
+    const opened = await playVideo(id);
+    if (!opened) {
+      Alert.alert(
+        'This video will not open',
+        'Nothing is wrong with your phone. Try again in a moment.',
+      );
+    }
+  }
+
+  function handleFreedLayout(event: LayoutChangeEvent) {
+    setFreedHeight(event.nativeEvent.layout.height);
   }
 
   return (
@@ -72,8 +92,9 @@ export default function BrowseScreen() {
             assets={assets}
             selected={selected}
             onToggle={toggle}
-            onPlay={(id) => void playVideo(id)}
+            onPlay={(id) => void play(id)}
             bottomInset={selected.size > 0 ? footerHeight : 0}
+            topInset={freed ? freedHeight : 0}
           />
         ) : (
           <View style={styles.empty}>
@@ -86,6 +107,22 @@ export default function BrowseScreen() {
             </Text>
           </View>
         )}
+
+        {freed ? (
+          <View
+            onLayout={handleFreedLayout}
+            style={[
+              styles.freed,
+              cardShadow,
+              { backgroundColor: palette.card, borderColor: palette.rule },
+            ]}>
+            <Text
+              style={[styles.freedText, { color: palette.ink }]}
+              maxFontSizeMultiplier={1.8}>
+              {freed}
+            </Text>
+          </View>
+        ) : null}
 
         <SelectionFooter
           count={selected.size}
@@ -103,4 +140,14 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   empty: { flex: 1, justifyContent: 'center', padding: space.xl },
   emptyText: { fontSize: 16, lineHeight: 23, textAlign: 'center' },
+  freed: {
+    position: 'absolute',
+    top: space.md,
+    left: space.lg,
+    right: space.lg,
+    borderRadius: radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: space.md,
+  },
+  freedText: { fontSize: 15, lineHeight: 21 },
 });

@@ -26,6 +26,8 @@ type Props = {
    * floating footer (e.g. SelectionFooter) never hides the last row.
    */
   bottomInset?: number;
+  /** Same idea at the top, for a floating banner (e.g. the freed receipt). */
+  topInset?: number;
 };
 
 /**
@@ -41,6 +43,7 @@ export function MediaBrowserGrid({
   onToggle,
   onPlay,
   bottomInset = 0,
+  topInset = 0,
 }: Props) {
   const { width } = useWindowDimensions();
 
@@ -69,7 +72,7 @@ export function MediaBrowserGrid({
       })}
       contentContainerStyle={[
         styles.content,
-        { paddingBottom: space.xxxl + bottomInset },
+        { paddingTop: topInset, paddingBottom: space.xxxl + bottomInset },
       ]}
       contentInsetAdjustmentBehavior="automatic"
       renderItem={({ item: row }) => (
