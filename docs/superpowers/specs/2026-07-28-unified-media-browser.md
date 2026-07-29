@@ -120,8 +120,20 @@ exists to remove.
 
 ## 7. Where it lives
 
-**Recommendation: `/review` is upgraded into this screen** rather than a new one
-being added, reached by a prominent link from the Clean tab.
+**A new pushed screen `/browse`, reached by a prominent link from the Clean
+tab.** `/review` is *not* repurposed.
+
+Correction to the earlier draft of this section: `/review` is the trust escape
+hatch for the breaker's own selection — everything pre-ticked, individually
+untickable, which is what makes the user willing to press the main button at all
+(`review.tsx:13`). The browser is the opposite: everything shown, nothing
+pre-ticked. Folding one into the other would delete a load-bearing safety
+surface that nobody asked to remove. Both exist; both are pushed screens.
+
+The Clean tab's quiet links become:
+
+- `Check what will be deleted` → `/review` (was "See every photo first")
+- `Everything on your phone · 12,481 items · 84 GB` → `/browse`
 
 `DESIGN.md`'s first-viewport contract is the breaker panel, and a fourth tab
 would dilute the thing the design direction was chosen to deliver. The existing
@@ -135,6 +147,9 @@ weighed — the stated goal is a *single place*, and a pushed screen is less
 findable — and rejected. Landing the user on 12,000 thumbnails instead of one
 button that frees 4 GB inverts the product. `DESIGN.md` needs no amendment; the
 three-section structure stands.
+
+Three quiet links under the breaker is one more than today. "Go further" is
+already conditional on similar photos existing, so the common case remains two.
 
 ## 8. The unreachable pile
 
@@ -152,7 +167,9 @@ feature gains.
 
 **Make the manual path measurable.** On the WhatsApp guide screen:
 
-1. Snapshot `FileSystem.getFreeDiskStorageAsync()` before leaving.
+1. Snapshot `Paths.availableDiskSpace` before leaving — the synchronous property
+   already used by `delete.ts` and `use-scan.ts`, not the legacy
+   `getFreeDiskStorageAsync`.
 2. One-tap "Open WhatsApp" via `Linking.openURL('whatsapp://')`. This is a
    documented inter-app scheme, not private API, and carries none of the
    rejection risk that rules out `App-Prefs:root=…`. `canOpenURL` requires
