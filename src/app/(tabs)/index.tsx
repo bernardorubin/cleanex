@@ -96,10 +96,14 @@ export default function CleanScreen() {
         <Nameplate
           usedBytes={disk.usedBytes}
           totalBytes={disk.totalBytes}
-          photoLibraryBytes={result?.assets.reduce(
-            (sum, a) => sum + a.sizeBytes,
-            0,
-          )}
+          photoLibraryBytes={
+            phase === 'scanning'
+              ? undefined
+              : result?.assets.reduce(
+                  (sum, a) => sum + a.sizeBytes,
+                  0,
+                )
+          }
         />
 
         {freed ? (
