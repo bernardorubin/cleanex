@@ -130,10 +130,11 @@ now is:
 
 > Everything on your phone · 12,481 items · 84 GB
 
-**This is the one open decision in the spec.** The counter-argument is real: the
-stated product goal is a *single place*, and a pushed screen is less findable
-than a tab. If findability wins, this becomes a fourth `NativeTabs` item and
-`DESIGN.md` needs a corresponding amendment. Resolve before planning.
+**Resolved 2026-07-28: pushed screen, not a tab.** The counter-argument was
+weighed — the stated goal is a *single place*, and a pushed screen is less
+findable — and rejected. Landing the user on 12,000 thumbnails instead of one
+button that frees 4 GB inverts the product. `DESIGN.md` needs no amendment; the
+three-section structure stands.
 
 ## 8. The unreachable pile
 
