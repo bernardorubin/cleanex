@@ -67,7 +67,12 @@ export function MediaBrowserGrid({
       maxToRenderPerBatch={12}
       getItemLayout={(_, index) => ({
         length: rowHeight,
-        offset: rowHeight * index,
+        // `topInset` becomes real paddingTop on the content container below,
+        // which shifts every row's actual on-screen position by that amount.
+        // getItemLayout has to report that same shift or its offsets stop
+        // matching reality — scroll-to and windowing math would be off by
+        // exactly the receipt's height.
+        offset: rowHeight * index + topInset,
         index,
       })}
       contentContainerStyle={[
