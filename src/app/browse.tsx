@@ -10,6 +10,7 @@ import {
 import { Stack } from 'expo-router';
 import { playVideo } from '@modules/photo-scan';
 
+import { MainBreaker } from '@/components/main-breaker';
 import { MediaBrowserGrid } from '@/components/media-browser-grid';
 import { SelectionFooter } from '@/components/selection-footer';
 import { countFavourites, favouriteNote, sortBySizeDesc } from '@/lib/scan/browse';
@@ -106,11 +107,28 @@ export default function BrowseScreen() {
     setFreedHeight(event.nativeEvent.layout.height);
   }
 
+  const failed = phase === 'failed';
+
   return (
     <>
       <Stack.Screen options={{ title: 'Everything on your phone' }} />
       <View style={[styles.screen, { backgroundColor: palette.panel }]}>
-        {assets.length > 0 ? (
+        {failed ? (
+          // A failed rescan leaves `result` describing an earlier moment —
+          // after a delete on this screen, that means already-deleted items
+          // would still show and could be selected again. Say so plainly
+          // instead of leaving the stale grid up, and always give the user
+          // something to press rather than a dead end.
+          <View style={styles.failed}>
+            <Text
+              style={[styles.failedText, { color: palette.ink }]}
+              maxFontSizeMultiplier={1.8}>
+              Make Room could not finish looking through your photos. Nothing
+              was changed.
+            </Text>
+            <MainBreaker label="Try again" onPress={() => void rescan()} />
+          </View>
+        ) : assets.length > 0 ? (
           <MediaBrowserGrid
             assets={assets}
             selected={selected}
@@ -163,6 +181,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   empty: { flex: 1, justifyContent: 'center', padding: space.xl },
   emptyText: { fontSize: 16, lineHeight: 23, textAlign: 'center' },
+  failed: { flex: 1, justifyContent: 'center', gap: space.md, padding: space.xl },
+  failedText: { fontSize: 16, lineHeight: 23, textAlign: 'center' },
   freed: {
     position: 'absolute',
     top: space.md,
