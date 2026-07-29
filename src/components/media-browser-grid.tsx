@@ -21,6 +21,11 @@ type Props = {
   selected: Set<string>;
   onToggle: (id: string) => void;
   onPlay: (id: string) => void;
+  /**
+   * Extra bottom clearance, on top of the list's own padding — enough that a
+   * floating footer (e.g. SelectionFooter) never hides the last row.
+   */
+  bottomInset?: number;
 };
 
 /**
@@ -30,7 +35,13 @@ type Props = {
  * makes getItemLayout exact, which is what keeps scrolling smooth at thirty
  * thousand assets — the eager ScrollView in PhotoGrid cannot survive that.
  */
-export function MediaBrowserGrid({ assets, selected, onToggle, onPlay }: Props) {
+export function MediaBrowserGrid({
+  assets,
+  selected,
+  onToggle,
+  onPlay,
+  bottomInset = 0,
+}: Props) {
   const { width } = useWindowDimensions();
 
   const columns = width >= 700 ? 4 : 3;
@@ -56,7 +67,10 @@ export function MediaBrowserGrid({ assets, selected, onToggle, onPlay }: Props) 
         offset: rowHeight * index,
         index,
       })}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: space.xxxl + bottomInset },
+      ]}
       contentInsetAdjustmentBehavior="automatic"
       renderItem={({ item: row }) => (
         <View style={[styles.row, { gap, height: rowHeight }]}>

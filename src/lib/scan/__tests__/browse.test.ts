@@ -1,6 +1,7 @@
 import {
   chunkIntoRows,
   countFavourites,
+  favouriteNote,
   formatDuration,
   sortBySizeDesc,
 } from '@/lib/scan/browse';
@@ -89,6 +90,24 @@ describe('countFavourites', () => {
       asset({ id: 'b', isFavorite: true }),
     ];
     expect(countFavourites(assets, new Set(['a', 'b']))).toBe(2);
+  });
+});
+
+describe('favouriteNote', () => {
+  it('returns undefined when nothing selected is a favourite', () => {
+    expect(favouriteNote(0, 5)).toBeUndefined();
+  });
+
+  it('names a single favourite among several selected items', () => {
+    expect(favouriteNote(1, 5)).toBe('1 of these items is a favourite.');
+  });
+
+  it('uses singular wording when exactly one item is selected', () => {
+    expect(favouriteNote(1, 1)).toBe('This item is a favourite.');
+  });
+
+  it('names several favourites', () => {
+    expect(favouriteNote(3, 5)).toBe('3 of these items are favourites.');
   });
 });
 

@@ -44,3 +44,19 @@ export function formatDuration(seconds: number): string {
   const rest = total % 60;
   return `${minutes}:${rest.toString().padStart(2, '0')}`;
 }
+
+/**
+ * Names the favourites within a selection, for the delete confirmation and
+ * the selection footer. "Item" rather than "photo" because /browse is the one
+ * screen that lists videos too, and favourites apply to both. Undefined when
+ * nothing selected is a favourite: no note needed.
+ */
+export function favouriteNote(
+  favouriteCount: number,
+  selectedCount: number,
+): string | undefined {
+  if (favouriteCount === 0) return undefined;
+  if (selectedCount === 1) return 'This item is a favourite.';
+  if (favouriteCount === 1) return '1 of these items is a favourite.';
+  return `${favouriteCount} of these items are favourites.`;
+}

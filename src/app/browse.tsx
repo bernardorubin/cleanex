@@ -5,7 +5,7 @@ import { playVideo } from '@modules/photo-scan';
 
 import { MediaBrowserGrid } from '@/components/media-browser-grid';
 import { SelectionFooter } from '@/components/selection-footer';
-import { countFavourites, sortBySizeDesc } from '@/lib/scan/browse';
+import { countFavourites, favouriteNote, sortBySizeDesc } from '@/lib/scan/browse';
 import { confirmDelete, deleteAndMeasure } from '@/lib/scan/delete';
 import { estimateFreed, formatBytes } from '@/lib/scan/estimate';
 import { useScanState } from '@/lib/scan/scan-context';
@@ -19,8 +19,9 @@ import { space, usePalette } from '@/lib/ui/theme';
  */
 export default function BrowseScreen() {
   const palette = usePalette();
-  const { result, rescan } = useScanState();
+  const { result, rescan, phase } = useScanState();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [footerHeight, setFooterHeight] = useState(0);
 
   const assets = useMemo(
     () => (result ? sortBySizeDesc(result.assets) : []),
@@ -57,12 +58,7 @@ export default function BrowseScreen() {
   function askToDelete() {
     // Naming favourites in the confirmation is the only guard on deleting
     // something the user hearted — this screen deliberately lets them select it.
-    const note =
-      favouriteCount === 0
-        ? undefined
-        : favouriteCount === 1
-          ? '1 of these is a photo you marked as a favourite.'
-          : `${favouriteCount} of these are photos you marked as favourites.`;
+    const note = favouriteNote(favouriteCount, selected.size);
 
     confirmDelete(selected.size, formatBytes(bytes), runDelete, note);
   }
@@ -77,11 +73,16 @@ export default function BrowseScreen() {
             selected={selected}
             onToggle={toggle}
             onPlay={(id) => void playVideo(id)}
+            bottomInset={selected.size > 0 ? footerHeight : 0}
           />
         ) : (
           <View style={styles.empty}>
             <Text style={[styles.emptyText, { color: palette.inkSecondary }]}>
-              Nothing here yet. Make Room is still looking through your photos.
+              {phase === 'denied'
+                ? 'Make Room cannot see your photos yet. Check Settings to allow access.'
+                : phase === 'ready'
+                  ? 'Nothing here. Your photo library is empty.'
+                  : 'Nothing here yet. Make Room is still looking through your photos.'}
             </Text>
           </View>
         )}
@@ -91,6 +92,7 @@ export default function BrowseScreen() {
           bytes={bytes}
           favouriteCount={favouriteCount}
           onDelete={askToDelete}
+          onHeightChange={setFooterHeight}
         />
       </View>
     </>

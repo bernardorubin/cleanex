@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MainBreaker } from '@/components/main-breaker';
+import { favouriteNote } from '@/lib/scan/browse';
 import { formatBytes } from '@/lib/scan/estimate';
 import { cardShadow, space, usePalette } from '@/lib/ui/theme';
 
@@ -10,6 +11,12 @@ type Props = {
   bytes: number;
   favouriteCount: number;
   onDelete: () => void;
+  /**
+   * Reports the bar's real rendered height. Dynamic Type makes that height
+   * unpredictable, so callers who need to reserve clearance for it (e.g. the
+   * grid underneath) measure rather than guess a constant.
+   */
+  onHeightChange?: (height: number) => void;
 };
 
 /**
@@ -19,14 +26,27 @@ type Props = {
  * Absent entirely when nothing is selected, so the resting state of the browser
  * is a calm screen with no controls competing for attention.
  */
-export function SelectionFooter({ count, bytes, favouriteCount, onDelete }: Props) {
+export function SelectionFooter({
+  count,
+  bytes,
+  favouriteCount,
+  onDelete,
+  onHeightChange,
+}: Props) {
   const palette = usePalette();
   const insets = useSafeAreaInsets();
 
   if (count === 0) return null;
 
+  function handleLayout(event: LayoutChangeEvent) {
+    onHeightChange?.(event.nativeEvent.layout.height);
+  }
+
+  const note = favouriteNote(favouriteCount, count);
+
   return (
     <View
+      onLayout={handleLayout}
       style={[
         styles.bar,
         cardShadow,
@@ -36,13 +56,11 @@ export function SelectionFooter({ count, bytes, favouriteCount, onDelete }: Prop
           borderTopColor: palette.rule,
         },
       ]}>
-      {favouriteCount > 0 ? (
+      {note ? (
         <Text
           style={[styles.warning, { color: palette.inkSecondary }]}
           maxFontSizeMultiplier={1.8}>
-          {favouriteCount === 1
-            ? '1 of these is a photo you marked as a favourite.'
-            : `${favouriteCount} of these are photos you marked as favourites.`}
+          {note}
         </Text>
       ) : null}
 
