@@ -45,10 +45,12 @@ export function confirmDelete(
   count: number,
   sizeLabel: string,
   onConfirm: () => void,
+  /** Extra paragraph shown before the safety net line, e.g. a favourite count. */
+  note?: string,
 ): void {
   Alert.alert(
     `Delete ${count} ${count === 1 ? 'item' : 'items'}?`,
-    `This frees about ${sizeLabel}.\n\nThey move to Recently Deleted in Photos. You have 30 days to get them back.`,
+    `This frees about ${sizeLabel}.${note ? `\n\n${note}` : ''}\n\nThey move to Recently Deleted in Photos. You have 30 days to get them back.`,
     [
       { text: 'Cancel', style: 'cancel' },
       { text: `Delete ${count}`, style: 'destructive', onPress: onConfirm },

@@ -150,7 +150,17 @@ export default function CleanScreen() {
               />
             ) : null}
 
-            <QuietLink label="See every photo first" onPress={() => router.push('/review')} />
+            <QuietLink
+              label="Check what will be deleted"
+              onPress={() => router.push('/review')}
+            />
+
+            <QuietLink
+              label={`Everything on your phone · ${result.assets.length.toLocaleString()} items · ${formatBytes(
+                result.assets.reduce((sum, a) => sum + a.sizeBytes, 0),
+              )}`}
+              onPress={() => router.push('/browse')}
+            />
           </>
         ) : null}
 
