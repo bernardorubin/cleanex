@@ -17,7 +17,7 @@ accuracy but adds a concept loses.
 
 | | |
 |---|---|
-| Tests | `pnpm test` (jest, 80 tests, no device needed) |
+| Tests | `pnpm test` (jest, 89 tests, no device needed) |
 | Types | `pnpm typecheck` |
 | Lint | `pnpm lint` |
 | Build | `pnpm build:ios` (EAS, production profile) |
@@ -60,13 +60,23 @@ navigation. It is mounted once in `ScanProvider` (`src/app/_layout.tsx`) and
 every screen reads it via `useScanState()`. **Never call `useScan` directly from
 a screen.**
 
-**`ScanPhase` includes `'failed'`.** A scan that dies before landing a fresh
-`result` sets it, and screens must gate stale UI on it — the Clean tab and
-`/browse` both do. The reason is specific: `disk` is refreshed immediately on
-rescan while `result` is not, so any surface that renders `result` while the
-phases disagree shows pre-deletion data. This already caused a wrong storage
-figure on the capacity plate and a live armed "Free up X GB" button after a
-failed scan.
+**Only `'refining'` and `'ready'` carry a trustworthy `result`.** `disk` is
+refreshed immediately on rescan while `result` is not, so during `'scanning'`
+and `'failed'` the two disagree and `result` still describes the library as it
+was before whatever changed disk usage — a delete, most often. Rendering it then
+shows already-deleted photos behind a live delete button that resolves to
+nothing when pressed, and puts a stale figure on the capacity plate.
+
+So **every screen that renders `result` computes `dataIsFresh` and renders
+`<ScanInterlude>` instead when it is false** — the Clean tab, This Week,
+`/browse`, `/review` and `/deck`, i.e. all of them. `ScanInterlude` owns the
+`'failed'`, `'denied'` and in-progress copy so it cannot drift, and always
+leaves something to press. No screen returns `null` for a missing result.
+
+**Shared user-facing copy lives in `src/lib/scan/messages.ts`**, under test.
+Anything two screens both say goes there. The failed-scan wording in particular
+is written so it cannot contradict a delete receipt rendered beside it: an
+earlier "Nothing was changed" appeared directly under "Freed 4.1 GB".
 
 ## Conventions
 
@@ -93,10 +103,17 @@ must stay enforced:
    members is a bug that loses a photo.
 3. **Never double-count.** Screenshots are excluded from "Photos you didn't take"
    for this reason.
-4. **Report the truth after the fact.** Show the estimate, then the real freed
-   bytes, and explain the gap rather than hiding it.
+4. **Never report a freed-space measurement.** There is none to report.
+   `PHAssetChangeRequest.deleteAssets` moves assets to Recently Deleted, where
+   the files keep occupying storage for 30 days, so free space does not move at
+   the moment of deletion. Sampling `Paths.availableDiskSpace` either side of a
+   delete produced "Freed 0 bytes. Less than expected because iCloud was already
+   storing most of these for you." — a wrong number and a false cause, printed
+   at the payoff moment. `freedMessage` reports the size removed and when the
+   space comes back instead. Do not reintroduce a delta.
 5. **Recently Deleted (30 days) is stated at the moment of decision**, not in a
-   help page.
+   help page. It is also what the receipt explains afterwards, which is why the
+   receipt reads as reassurance rather than a shortfall.
 
 ## Hard limits — confirmed, permanent, do not reopen
 
@@ -170,15 +187,22 @@ he actually saw before changing any of them.
   whether the "You freed X" line appears at all.
 - **VoiceOver announcements** use `announceForAccessibilityWithOptions({ queue:
   true })` because iOS drops same-frame announcements. Whether they are
-  actually spoken is unverified on device.
-- **Video playback audio** may be silenced by the hardware ringer switch — no
-  `AVAudioSession` category is set anywhere in the app. Suspected, unverified.
+  actually spoken is unverified on device. Used by `/browse` (delete receipt),
+  the selection footer, and the guide screen's freed line.
+- **Video playback audio.** `playVideo` now sets `AVAudioSession` `.playback`
+  before presenting, which is what stops the ringer switch silencing it. The
+  fix is unverified on device — it is the only `AVAudioSession` call in the app.
 
 ## Known gaps
 
-`src/app/review.tsx` still discards its delete outcome and never reports real
-freed bytes, unlike the Clean tab and `/browse`, which both use `freedMessage`
-from `src/lib/scan/estimate.ts`. Deliberately left out of scope.
+`/review`, `/deck` and This Week discard their delete outcome and show no
+receipt at all, unlike the Clean tab and `/browse`, which both use
+`freedMessage` from `src/lib/scan/estimate.ts`. They navigate back or rescan
+instead. Deliberately left out of scope.
+
+`/review` still renders every deletable asset eagerly through `PhotoGrid`
+inside a `ScrollView`. `/browse` was virtualized; `/review` was not, and on a
+large library it will hang. Known, separate piece of work.
 
 ## Accessibility is a requirement, not a checkbox
 
@@ -193,6 +217,8 @@ including live progress and the freed-space result, Reduce Motion respected
 ```
 modules/photo-scan/ios/PhotoScanModule.swift   the only Swift
 src/lib/scan/                                   all product logic + tests
+src/lib/scan/messages.ts                        copy shared by more than one screen
+src/components/scan-interlude.tsx               what a screen shows without fresh data
 src/lib/guides/content.ts                       honest walkthroughs for sandbox limits
 src/lib/scan/scan-context.tsx                   one scan shared by every screen
 src/lib/storage/breakdown.ts                    unreachable-storage figure + suppression

@@ -100,9 +100,10 @@ in units a person uses out loud ("4.2 GB", not "4,284,506,112 bytes").
 
 ## Evidence on Hand
 
-Working scan pipeline with 46 passing unit tests covering categorization,
-keeper selection, duplicate grouping, similarity clustering, and freed-space
-estimation. Native module implemented against PhotoKit and Vision.
+Working scan pipeline with 89 passing unit tests covering categorization,
+keeper selection, duplicate grouping, similarity clustering, size estimation,
+and the wording of what the app tells the user. Native module implemented
+against PhotoKit and Vision.
 
 No real-device benchmark numbers yet — scan performance is measured, not
 assumed, and no performance claim may be made until it is.
@@ -120,8 +121,10 @@ No users, no reviews, no press, no download counts. None may be invented.
    show the manual path, rather than implying coverage we do not have.
 4. **The safety net is load-bearing.** Deleted photos sit in Recently Deleted
    for 30 days. This fact belongs at the moment of decision, not in a help page.
-5. **Predict, then report the truth.** Show the estimate, measure the real
-   freed space, and explain any gap instead of hiding it.
+5. **Report only what is true and knowable.** Deleting moves photos to Recently
+   Deleted, so free space does not change at that moment and there is no freed
+   figure to measure. The receipt says how much left the library and when the
+   space comes back. Never invent a measurement to fill the gap.
 
 ## Accessibility & Inclusion
 
