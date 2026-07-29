@@ -6,7 +6,7 @@ import type { PhotoPermission } from '@modules/photo-scan';
 import { runScan } from '@/lib/scan/scanner';
 import type { ScanResult } from '@/lib/scan/types';
 
-export type ScanPhase = 'idle' | 'scanning' | 'refining' | 'ready' | 'denied';
+export type ScanPhase = 'idle' | 'scanning' | 'refining' | 'ready' | 'denied' | 'failed';
 
 export type Disk = { usedBytes: number; totalBytes: number };
 
@@ -49,10 +49,7 @@ export function useScan(): ScanState {
     // not. If runScan throws before either fires (e.g. inventory() itself
     // fails mid-rescan), `result` is untouched and still describes whatever
     // was on screen before this call, which may predate a delete that just
-    // changed `disk`. Forcing 'ready' in that case would tell the call site
-    // it is safe to read `result` against the just-refreshed `disk`, and it
-    // is not — so phase must stay 'scanning' instead, which is exactly the
-    // gate the call site already uses to hide the figure.
+    // changed `disk`.
     let landedFreshResult = false;
     try {
       await runScan((progress) => {
@@ -64,6 +61,17 @@ export function useScan(): ScanState {
         setResult(progress.result);
         setPhase(progress.phase === 'categorized' ? 'refining' : 'ready');
       });
+    } catch {
+      // A run that never landed a fresh result must not settle on 'ready' —
+      // `result` would still describe an earlier moment (e.g. before a
+      // delete) while `disk` below is already current. 'failed' is a real,
+      // renderable state (see the Clean tab's retry block), not just a gate:
+      // 'scanning' forever would leave the user staring at a spinner with
+      // nothing to press. A run that DID land a fresh result before dying
+      // later (e.g. the similarity pass fails) keeps whatever phase the
+      // progress callback already set — that result is current, just less
+      // refined, so there is nothing to fail.
+      if (!landedFreshResult) setPhase('failed');
     } finally {
       setDisk(readDisk());
       if (landedFreshResult) setPhase('ready');

@@ -80,6 +80,13 @@ export default function CleanScreen() {
 
   const scanning = phase === 'scanning';
   const refining = phase === 'refining';
+  const failed = phase === 'failed';
+  // Only these two phases carry a `result` that was actually produced by the
+  // run currently reflected in `disk` — 'scanning' has not finished yet and
+  // 'failed' may still be holding a result from before whatever just changed
+  // disk usage (a delete, most often). Trusting it in either case is how a
+  // stale figure reaches the capacity plate.
+  const dataIsFresh = phase === 'refining' || phase === 'ready';
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.panel }]} edges={['top']}>
@@ -92,12 +99,9 @@ export default function CleanScreen() {
           usedBytes={disk.usedBytes}
           totalBytes={disk.totalBytes}
           photoLibraryBytes={
-            phase === 'scanning'
-              ? undefined
-              : result?.assets.reduce(
-                  (sum, a) => sum + a.sizeBytes,
-                  0,
-                )
+            dataIsFresh
+              ? result?.assets.reduce((sum, a) => sum + a.sizeBytes, 0)
+              : undefined
           }
         />
 
@@ -118,7 +122,19 @@ export default function CleanScreen() {
           </View>
         ) : null}
 
-        {result && entries.length > 0 ? (
+        {failed ? (
+          <View style={styles.failed}>
+            <Text
+              style={[styles.failedText, { color: palette.ink }]}
+              maxFontSizeMultiplier={1.8}>
+              Make Room could not finish looking through your photos. Nothing
+              was changed.
+            </Text>
+            <MainBreaker label="Try again" onPress={() => void rescan()} />
+          </View>
+        ) : null}
+
+        {result && entries.length > 0 && !failed ? (
           <>
             <Text style={[styles.headline, { color: palette.ink }]}>
               {formatBytes(selection.bytes)} ready to delete
@@ -170,7 +186,7 @@ export default function CleanScreen() {
           </>
         ) : null}
 
-        {result && entries.length === 0 && !scanning ? (
+        {result && entries.length === 0 && !scanning && !failed ? (
           <View style={styles.empty}>
             <Text style={[styles.emptyTitle, { color: palette.ink }]}>
               Nothing to clean up.
@@ -264,6 +280,8 @@ const styles = StyleSheet.create({
     padding: space.md,
   },
   receiptText: { fontSize: 15, lineHeight: 21 },
+  failed: { gap: space.md, paddingVertical: space.md },
+  failedText: { fontSize: 15, lineHeight: 21 },
   empty: { gap: space.sm, paddingVertical: space.xl },
   emptyTitle: { fontSize: 20, fontWeight: '600' },
   emptyBody: { fontSize: 15, lineHeight: 21 },
