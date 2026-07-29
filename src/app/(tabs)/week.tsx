@@ -5,8 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MainBreaker } from '@/components/main-breaker';
 import { PhotoGrid } from '@/components/photo-grid';
 import { QuietLink } from '@/components/quiet-link';
+import { ScanInterlude } from '@/components/scan-interlude';
 import { SwipeDeck } from '@/components/swipe-deck';
-import { confirmDelete, deleteAndMeasure } from '@/lib/scan/delete';
+import { confirmDelete, deleteSelected } from '@/lib/scan/delete';
 import { formatBytes } from '@/lib/scan/estimate';
 import { useScanState } from '@/lib/scan/scan-context';
 import {
@@ -20,7 +21,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function WeekScreen() {
   const palette = usePalette();
-  const { result, rescan } = useScanState();
+  const { result, rescan, phase, assetCount } = useScanState();
   const [mode, setMode] = useState<'grid' | 'swipe'>('grid');
   const [armed, setArmed] = useState<Set<string>>(new Set());
   const [reminderOn, setReminderOn] = useState(false);
@@ -29,13 +30,19 @@ export default function WeekScreen() {
     void isReminderScheduled().then(setReminderOn);
   }, []);
 
+  // Same gate as every other screen that renders `result`: only 'refining' and
+  // 'ready' carry one produced by the run currently reflected on disk. The
+  // Sunday reminder below is not scan data, so it stays reachable throughout.
+  const dataIsFresh = phase === 'refining' || phase === 'ready';
+  const fresh = dataIsFresh && result !== null ? result : null;
+
   const recent = useMemo(() => {
-    if (!result) return [];
+    if (!fresh) return [];
     const cutoff = Date.now() - WEEK_MS;
-    return result.assets
+    return fresh.assets
       .filter((a) => a.createdAt >= cutoff && !a.isFavorite)
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [result]);
+  }, [fresh]);
 
   const totalBytes = useMemo(
     () => recent.reduce((sum, a) => sum + a.sizeBytes, 0),
@@ -57,7 +64,7 @@ export default function WeekScreen() {
   }
 
   async function runDelete() {
-    const outcome = await deleteAndMeasure([...armed], armedBytes);
+    const outcome = await deleteSelected([...armed]);
     if (outcome.status === 'done') {
       setArmed(new Set());
       await rescan();
@@ -77,18 +84,30 @@ export default function WeekScreen() {
         contentInsetAdjustmentBehavior="automatic">
         <Text style={[styles.title, { color: palette.ink }]}>This week</Text>
 
-        {recent.length === 0 ? (
+        {!fresh ? (
+          <ScanInterlude
+            phase={phase}
+            assetCount={assetCount}
+            onRetry={() => void rescan()}
+          />
+        ) : recent.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: palette.ink }]}>
+            <Text
+              style={[styles.emptyTitle, { color: palette.ink }]}
+              maxFontSizeMultiplier={1.8}>
               Nothing to clean up.
             </Text>
-            <Text style={[styles.emptyBody, { color: palette.inkSecondary }]}>
+            <Text
+              style={[styles.emptyBody, { color: palette.inkSecondary }]}
+              maxFontSizeMultiplier={1.8}>
               You did not add much this week, and it all looks worth keeping.
             </Text>
           </View>
         ) : (
           <>
-            <Text style={[styles.lead, { color: palette.inkSecondary }]}>
+            <Text
+              style={[styles.lead, { color: palette.inkSecondary }]}
+              maxFontSizeMultiplier={1.8}>
               {recent.length} new {recent.length === 1 ? 'item' : 'items'} ·{' '}
               {formatBytes(totalBytes)}. Tap anything you do not want.
             </Text>

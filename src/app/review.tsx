@@ -4,7 +4,8 @@ import { router } from 'expo-router';
 
 import { MainBreaker } from '@/components/main-breaker';
 import { PhotoGrid } from '@/components/photo-grid';
-import { confirmDelete, deleteAndMeasure } from '@/lib/scan/delete';
+import { ScanInterlude } from '@/components/scan-interlude';
+import { confirmDelete, deleteSelected } from '@/lib/scan/delete';
 import { formatBytes } from '@/lib/scan/estimate';
 import { useScanState } from '@/lib/scan/scan-context';
 import { CATEGORY_LABELS, type CategoryId } from '@/lib/scan/types';
@@ -17,33 +18,40 @@ import { space, stencil, usePalette } from '@/lib/ui/theme';
  */
 export default function ReviewScreen() {
   const palette = usePalette();
-  const { result, rescan } = useScanState();
+  const { result, rescan, phase, assetCount } = useScanState();
+
+  // Only these two phases carry a `result` produced by the run currently
+  // reflected on disk. Rendering any other one puts already-deleted photos
+  // back on screen, pre-ticked, behind a live "Delete 412 · 3.2 GB" that
+  // resolves to nothing when pressed.
+  const dataIsFresh = phase === 'refining' || phase === 'ready';
+  const fresh = dataIsFresh && result !== null ? result : null;
 
   const allDeletable = useMemo(
-    () => (result ? [...result.deletableIds] : []),
-    [result],
+    () => (fresh ? [...fresh.deletableIds] : []),
+    [fresh],
   );
   const [armed, setArmed] = useState<Set<string> | null>(null);
   const selection = armed ?? new Set(allDeletable);
 
   const byCategory = useMemo(() => {
-    if (!result) return [];
+    if (!fresh) return [];
     return (Object.keys(CATEGORY_LABELS) as CategoryId[])
       .map((id) => ({
         id,
         label: CATEGORY_LABELS[id],
-        assets: result.perCategory[id].assetIds
-          .map((assetId) => result.assets.find((a) => a.id === assetId))
+        assets: fresh.perCategory[id].assetIds
+          .map((assetId) => fresh.assets.find((a) => a.id === assetId))
           .filter((a): a is NonNullable<typeof a> => a !== undefined),
       }))
       .filter((group) => group.assets.length > 0);
-  }, [result]);
+  }, [fresh]);
 
   const bytes = useMemo(() => {
-    if (!result) return 0;
-    const byId = new Map(result.assets.map((a) => [a.id, a.sizeBytes]));
+    if (!fresh) return 0;
+    const byId = new Map(fresh.assets.map((a) => [a.id, a.sizeBytes]));
     return [...selection].reduce((sum, id) => sum + (byId.get(id) ?? 0), 0);
-  }, [result, selection]);
+  }, [fresh, selection]);
 
   function toggle(id: string) {
     setArmed(() => {
@@ -55,27 +63,46 @@ export default function ReviewScreen() {
   }
 
   async function runDelete() {
-    const outcome = await deleteAndMeasure([...selection], bytes);
+    const outcome = await deleteSelected([...selection]);
     if (outcome.status === 'done') {
       await rescan();
       router.back();
     }
   }
 
-  if (!result) return null;
+  if (!fresh) {
+    // Never `null`. A blank pushed screen is a dead end, and the user arrived
+    // here from a button they pressed deliberately.
+    return (
+      <ScrollView
+        style={{ backgroundColor: palette.panel }}
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic">
+        <ScanInterlude
+          phase={phase}
+          assetCount={assetCount}
+          onRetry={() => void rescan()}
+        />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
       style={{ backgroundColor: palette.panel }}
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic">
-      <Text style={[styles.lead, { color: palette.inkSecondary }]}>
+      <Text
+        style={[styles.lead, { color: palette.inkSecondary }]}
+        maxFontSizeMultiplier={1.8}>
         Everything here is ticked and ready to go. Tap anything you want to keep.
       </Text>
 
       {byCategory.map((group) => (
         <View key={group.id} style={styles.group}>
-          <Text style={[styles.groupTitle, { color: palette.inkSecondary }]}>
+          <Text
+            style={[styles.groupTitle, { color: palette.inkSecondary }]}
+            maxFontSizeMultiplier={1.8}>
             {group.label} · {group.assets.length}
           </Text>
           <PhotoGrid assets={group.assets} armed={selection} onToggle={toggle} />

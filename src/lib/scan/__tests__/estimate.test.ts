@@ -58,25 +58,31 @@ test('formatBytes uses plain units a non-technical reader expects', () => {
   expect(formatBytes(0)).toBe('0 bytes');
 });
 
-test('freedMessage reports the plain figure when the estimate roughly held', () => {
-  expect(freedMessage(4_200_000_000, 4_000_000_000)).toBe('Freed 4.0 GB.');
-});
-
-test('freedMessage reports the plain figure when actual bytes exceed the estimate', () => {
-  expect(freedMessage(1_000_000_000, 1_200_000_000)).toBe('Freed 1.2 GB.');
-});
-
-test('freedMessage names iCloud once the shortfall passes a quarter of the estimate', () => {
-  expect(freedMessage(8_000_000_000, 900_000_000)).toBe(
-    'Freed 900 MB. Less than expected because iCloud was already storing most of these for you.',
+test('freedMessage reports what was removed and where it went', () => {
+  expect(freedMessage(4_200_000_000)).toBe(
+    'Done. 4.2 GB is now in Recently Deleted. Your phone gets that space back when Recently Deleted empties in 30 days — or sooner, if you empty it yourself in the Photos app.',
   );
 });
 
-test('freedMessage stays at the plain figure right at the quarter boundary', () => {
-  // Shortfall must exceed 25%, not merely reach it.
-  expect(freedMessage(1_000_000_000, 750_000_000)).toBe('Freed 750 MB.');
+test('freedMessage uses the same human units everywhere else does', () => {
+  expect(freedMessage(780_000_000)).toContain('780 MB is now in Recently Deleted');
 });
 
-test('freedMessage handles a zero estimate without a false shortfall warning', () => {
-  expect(freedMessage(0, 0)).toBe('Freed 0 bytes.');
+test('freedMessage never claims a measured free-space figure', () => {
+  // Deleting moves assets to Recently Deleted, so free space does not move at
+  // this moment. Any wording implying a measurement would be untrue, and the
+  // old copy blamed iCloud for a shortfall that was really the 30-day wait.
+  const message = freedMessage(3_000_000_000);
+  expect(message).not.toContain('Freed');
+  expect(message).not.toContain('iCloud');
+});
+
+test('freedMessage always states the 30-day wait and the way to skip it', () => {
+  const message = freedMessage(1_000_000_000);
+  expect(message).toContain('30 days');
+  expect(message).toContain('empty it yourself in the Photos app');
+});
+
+test('freedMessage handles a zero total without changing shape', () => {
+  expect(freedMessage(0)).toContain('0 bytes is now in Recently Deleted');
 });

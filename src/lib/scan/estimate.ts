@@ -41,17 +41,28 @@ export function formatBytes(bytes: number): string {
 }
 
 /**
- * The post-delete receipt: predict with the estimate, report the truth. With
- * iCloud "Optimize iPhone Storage" on, originals live in iCloud and only a
- * placeholder sits on the phone, so freeing a "4 GB" video can recover far
- * less locally. A large gap is the moment to name iCloud rather than quietly
- * show a smaller number. Shared by every screen that deletes, so the wording
+ * The post-delete receipt. Shared by every screen that deletes, so the wording
  * cannot drift between them.
+ *
+ * It deliberately reports no measured free-space delta, because there is none
+ * to measure. `PHAssetChangeRequest.deleteAssets` moves assets to Recently
+ * Deleted, where their files keep occupying storage for thirty days — free
+ * space right after a delete is unchanged, so sampling it either side reads
+ * "Freed 0 bytes" on a successful delete of gigabytes.
+ *
+ * What is true and knowable at this moment is the size of what was removed and
+ * where it went. The thirty-day wait is the same safety net the app already
+ * promises at the moment of decision, so naming it here reads as reassurance
+ * rather than a shortfall — and the "or sooner" clause is the route to space
+ * today for someone who has none.
+ *
+ * `removedBytes` is the summed asset size, the same figure the confirmation
+ * quoted. On an iCloud-optimized library those are full-size originals, so the
+ * sentence describes the size of what left the library rather than promising an
+ * exact number of bytes the phone gets back.
  */
-export function freedMessage(estimatedBytes: number, actualBytes: number): string {
-  const shortfall = estimatedBytes - actualBytes;
-  const misleading = shortfall > estimatedBytes * 0.25;
-  return misleading
-    ? `Freed ${formatBytes(actualBytes)}. Less than expected because iCloud was already storing most of these for you.`
-    : `Freed ${formatBytes(actualBytes)}.`;
+export function freedMessage(removedBytes: number): string {
+  return `Done. ${formatBytes(
+    removedBytes,
+  )} is now in Recently Deleted. Your phone gets that space back when Recently Deleted empties in 30 days — or sooner, if you empty it yourself in the Photos app.`;
 }

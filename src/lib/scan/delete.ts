@@ -1,40 +1,31 @@
 import { Alert } from 'react-native';
-import { Paths } from 'expo-file-system';
 import { deleteAssets } from '@modules/photo-scan';
 
 export type DeleteOutcome =
   | { status: 'cancelled' }
-  | { status: 'done'; count: number; estimatedBytes: number; actualBytes: number };
+  | { status: 'done'; count: number };
 
 /**
- * Deletes in one batch and reports what actually happened.
+ * Deletes in one batch and says whether it happened.
  *
- * We predict with the estimate but report the truth: with iCloud "Optimize
- * iPhone Storage" on, originals live in iCloud and the phone holds smaller
- * copies, so freeing a "4 MB" photo may recover far less locally. There is no
- * clean per-asset API for this, so we measure free space either side rather
- * than trying to model it.
+ * It deliberately does not measure free space either side. `deleteAssets` moves
+ * assets to Recently Deleted, where the files keep occupying storage for thirty
+ * days, so the delta across a successful delete of gigabytes is zero. A number
+ * that always reads zero is worse than no number: it was being shown to the
+ * user as "Freed 0 bytes" at the payoff moment. What the receipt says instead
+ * lives in `freedMessage`.
+ *
+ * `cancelled` covers both the user dismissing the system sheet and the batch
+ * resolving to nothing — a screen showing stale ids can ask to delete assets
+ * that are already gone, and that must not read as a successful delete.
  */
-export async function deleteAndMeasure(
-  ids: string[],
-  estimatedBytes: number,
-): Promise<DeleteOutcome> {
+export async function deleteSelected(ids: string[]): Promise<DeleteOutcome> {
   if (ids.length === 0) return { status: 'cancelled' };
 
-  const before = Paths.availableDiskSpace;
   const { deleted, count } = await deleteAssets(ids);
-
   if (!deleted) return { status: 'cancelled' };
 
-  const after = Paths.availableDiskSpace;
-  return {
-    status: 'done',
-    count,
-    estimatedBytes,
-    // Other processes touch the disk too, so clamp at zero rather than
-    // ever showing a negative "freed" number.
-    actualBytes: Math.max(after - before, 0),
-  };
+  return { status: 'done', count };
 }
 
 /**

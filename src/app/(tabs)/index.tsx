@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,8 +7,14 @@ import { Directory, type DirectoryEntry } from '@/components/directory';
 import { MainBreaker } from '@/components/main-breaker';
 import { Nameplate } from '@/components/nameplate';
 import { QuietLink } from '@/components/quiet-link';
-import { confirmDelete, deleteAndMeasure } from '@/lib/scan/delete';
+import { ScanInterlude } from '@/components/scan-interlude';
+import { confirmDelete, deleteSelected } from '@/lib/scan/delete';
 import { formatBytes, freedMessage } from '@/lib/scan/estimate';
+import {
+  PERMISSION_DENIED_LEAD,
+  PERMISSION_DENIED_STEPS,
+  browseLinkLabel,
+} from '@/lib/scan/messages';
 import { useScanState } from '@/lib/scan/scan-context';
 import {
   AUTO_SAFE_CATEGORIES,
@@ -50,6 +56,14 @@ export default function CleanScreen() {
     return { ids: list, bytes };
   }, [result, armed]);
 
+  // Summed once. It feeds both the nameplate's derived reading and the browse
+  // link's size, and when the two were written out separately they drifted —
+  // one guarded by the suppression rule, the other not.
+  const libraryBytes = useMemo(
+    () => result?.assets.reduce((sum, a) => sum + a.sizeBytes, 0) ?? null,
+    [result],
+  );
+
   function toggle(key: string) {
     setArmed((current) => {
       const next = new Set(current);
@@ -60,13 +74,15 @@ export default function CleanScreen() {
   }
 
   async function runDelete() {
-    const outcome = await deleteAndMeasure(selection.ids, selection.bytes);
+    const removedBytes = selection.bytes;
+    const outcome = await deleteSelected(selection.ids);
     if (outcome.status === 'cancelled') return;
 
-    // Predict with the estimate, report the truth. A large gap is the moment
-    // to explain iCloud rather than quietly show a smaller number. Shared
-    // with /browse so the wording cannot drift between the two screens.
-    setFreed(freedMessage(outcome.estimatedBytes, outcome.actualBytes));
+    // Free space does not move at this moment — the assets are in Recently
+    // Deleted, still on the disk for 30 days. Report what left the library and
+    // when the space comes back. Shared with /browse so the wording cannot
+    // drift between the two screens.
+    setFreed(freedMessage(removedBytes));
     await rescan();
   }
 
@@ -78,15 +94,16 @@ export default function CleanScreen() {
     return <PermissionDenied />;
   }
 
-  const scanning = phase === 'scanning';
   const refining = phase === 'refining';
-  const failed = phase === 'failed';
   // Only these two phases carry a `result` that was actually produced by the
   // run currently reflected in `disk` — 'scanning' has not finished yet and
   // 'failed' may still be holding a result from before whatever just changed
   // disk usage (a delete, most often). Trusting it in either case is how a
-  // stale figure reaches the capacity plate.
+  // stale figure reaches the capacity plate, and how the directory keeps
+  // listing categories the user already deleted with a live "Free up X GB"
+  // that does nothing when pressed.
   const dataIsFresh = phase === 'refining' || phase === 'ready';
+  const fresh = dataIsFresh && result !== null ? result : null;
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.panel }]} edges={['top']}>
@@ -99,42 +116,29 @@ export default function CleanScreen() {
           usedBytes={disk.usedBytes}
           totalBytes={disk.totalBytes}
           photoLibraryBytes={
-            dataIsFresh
-              ? result?.assets.reduce((sum, a) => sum + a.sizeBytes, 0)
-              : undefined
+            dataIsFresh && libraryBytes !== null ? libraryBytes : undefined
           }
         />
 
         {freed ? (
           <View style={[styles.receipt, { borderColor: palette.rule }]}>
-            <Text style={[styles.receiptText, { color: palette.ink }]}>{freed}</Text>
-          </View>
-        ) : null}
-
-        {scanning ? (
-          <View style={styles.status}>
-            <ActivityIndicator color={palette.amber} />
-            <Text style={[styles.statusText, { color: palette.inkSecondary }]}>
-              {assetCount > 0
-                ? `Looking through ${assetCount.toLocaleString()} photos and videos…`
-                : 'Opening your photos…'}
-            </Text>
-          </View>
-        ) : null}
-
-        {failed ? (
-          <View style={styles.failed}>
             <Text
-              style={[styles.failedText, { color: palette.ink }]}
+              style={[styles.receiptText, { color: palette.ink }]}
               maxFontSizeMultiplier={1.8}>
-              Make Room could not finish looking through your photos. Nothing
-              was changed.
+              {freed}
             </Text>
-            <MainBreaker label="Try again" onPress={() => void rescan()} />
           </View>
         ) : null}
 
-        {result && entries.length > 0 && !failed ? (
+        {dataIsFresh ? null : (
+          <ScanInterlude
+            phase={phase}
+            assetCount={assetCount}
+            onRetry={() => void rescan()}
+          />
+        )}
+
+        {fresh && entries.length > 0 ? (
           <>
             <Text style={[styles.headline, { color: palette.ink }]}>
               {formatBytes(selection.bytes)} ready to delete
@@ -165,9 +169,9 @@ export default function CleanScreen() {
               Deleted, so you can always get them back.
             </Text>
 
-            {result.perCategory.similarPhotos.assetIds.length > 0 ? (
+            {fresh.perCategory.similarPhotos.assetIds.length > 0 ? (
               <QuietLink
-                label={`Go further · ${result.perCategory.similarPhotos.assetIds.length} photos need your call`}
+                label={`Go further · ${fresh.perCategory.similarPhotos.assetIds.length} photos need your call`}
                 onPress={() => router.push('/deck')}
               />
             ) : null}
@@ -176,26 +180,36 @@ export default function CleanScreen() {
               label="Check what will be deleted"
               onPress={() => router.push('/review')}
             />
-
-            <QuietLink
-              label={`Everything on your phone · ${result.assets.length.toLocaleString()} items · ${formatBytes(
-                result.assets.reduce((sum, a) => sum + a.sizeBytes, 0),
-              )}`}
-              onPress={() => router.push('/browse')}
-            />
           </>
         ) : null}
 
-        {result && entries.length === 0 && !scanning && !failed ? (
+        {fresh && entries.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: palette.ink }]}>
+            <Text
+              style={[styles.emptyTitle, { color: palette.ink }]}
+              maxFontSizeMultiplier={1.8}>
               Nothing to clean up.
             </Text>
-            <Text style={[styles.emptyBody, { color: palette.inkSecondary }]}>
-              We looked through {assetCount.toLocaleString()} photos and videos and
-              did not find copies or clutter worth deleting.
+            <Text
+              style={[styles.emptyBody, { color: palette.inkSecondary }]}
+              maxFontSizeMultiplier={1.8}>
+              We looked through {fresh.assets.length.toLocaleString()} photos and
+              videos and did not find copies or clutter worth deleting. You can
+              still look through everything on your phone yourself and delete
+              anything you do not want.
             </Text>
           </View>
+        ) : null}
+
+        {/* Outside both branches on purpose. When the breaker finds nothing,
+            this is the only route left to the screen that shows the user their
+            400 MB video — and "Nothing to clean up" with no way forward is the
+            origin case with the answer removed. */}
+        {fresh && libraryBytes !== null ? (
+          <QuietLink
+            label={browseLinkLabel(fresh.assets.length, libraryBytes, disk.usedBytes)}
+            onPress={() => router.push('/browse')}
+          />
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -229,12 +243,15 @@ function PermissionDenied() {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.panel }]}>
       <View style={styles.primer}>
-        <Text style={[styles.primerLead, { color: palette.ink }]}>
-          Make Room cannot see your photos yet.
+        <Text
+          style={[styles.primerLead, { color: palette.ink }]}
+          maxFontSizeMultiplier={1.8}>
+          {PERMISSION_DENIED_LEAD}
         </Text>
-        <Text style={[styles.primerBody, { color: palette.inkSecondary }]}>
-          Open the Settings app, find Make Room in the list, tap Photos, and choose
-          All Photos. Then come back here.
+        <Text
+          style={[styles.primerBody, { color: palette.inkSecondary }]}
+          maxFontSizeMultiplier={1.8}>
+          {PERMISSION_DENIED_STEPS}
         </Text>
       </View>
     </SafeAreaView>
@@ -258,13 +275,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: space.sm,
   },
-  status: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    paddingVertical: space.lg,
-  },
-  statusText: { fontSize: 15, flex: 1 },
   refining: {
     fontSize: 13,
     marginTop: -space.sm,
@@ -280,8 +290,6 @@ const styles = StyleSheet.create({
     padding: space.md,
   },
   receiptText: { fontSize: 15, lineHeight: 21 },
-  failed: { gap: space.md, paddingVertical: space.md },
-  failedText: { fontSize: 15, lineHeight: 21 },
   empty: { gap: space.sm, paddingVertical: space.xl },
   emptyTitle: { fontSize: 20, fontWeight: '600' },
   emptyBody: { fontSize: 15, lineHeight: 21 },
