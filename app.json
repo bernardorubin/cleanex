@@ -13,7 +13,8 @@
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Make Room looks through your photos to find copies and big files you can safely delete. Your photos never leave your phone."
+        "NSPhotoLibraryUsageDescription": "Make Room looks through your photos to find copies and big files you can safely delete. Your photos never leave your phone.",
+        "LSApplicationQueriesSchemes": ["whatsapp"]
       },
       "buildNumber": "11"
     },

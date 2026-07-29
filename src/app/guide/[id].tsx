@@ -1,13 +1,50 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AppState, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { Paths } from 'expo-file-system';
 
+import { MainBreaker } from '@/components/main-breaker';
 import { findGuide } from '@/lib/guides/content';
+import { formatBytes } from '@/lib/scan/estimate';
 import { cardShadow, radius, space, stencil, usePalette } from '@/lib/ui/theme';
+
+/**
+ * iOS purges caches and downloads iCloud assets on its own, so a small change
+ * in free space cannot be attributed to anything the user did. Below this we
+ * say nothing rather than report a number we cannot stand behind.
+ */
+const NOISE_FLOOR_BYTES = 200_000_000;
 
 export default function GuideScreen() {
   const palette = usePalette();
   const { id } = useLocalSearchParams<{ id: string }>();
   const guide = findGuide(id);
+
+  const freeBefore = useRef<number | null>(null);
+  const [recovered, setRecovered] = useState<number | null>(null);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || freeBefore.current === null) return;
+
+      const delta = (Paths.availableDiskSpace ?? 0) - freeBefore.current;
+      freeBefore.current = null;
+      if (delta >= NOISE_FLOOR_BYTES) setRecovered(delta);
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  async function openApp(scheme: string) {
+    freeBefore.current = Paths.availableDiskSpace ?? 0;
+    try {
+      await Linking.openURL(scheme);
+    } catch {
+      // WhatsApp is not installed. Nothing to measure, and the written steps
+      // below still stand on their own.
+      freeBefore.current = null;
+    }
+  }
 
   if (!guide) {
     return (
@@ -18,6 +55,8 @@ export default function GuideScreen() {
       </View>
     );
   }
+
+  const scheme = guide.appScheme;
 
   return (
     <>
@@ -50,6 +89,20 @@ export default function GuideScreen() {
             </View>
           ))}
         </View>
+
+        {recovered !== null ? (
+          <View style={[styles.note, { borderColor: palette.rule }]}>
+            <Text
+              style={[styles.body, { color: palette.ink }]}
+              maxFontSizeMultiplier={2}>
+              You freed {formatBytes(recovered)}.
+            </Text>
+          </View>
+        ) : null}
+
+        {scheme && guide.openLabel ? (
+          <MainBreaker label={guide.openLabel} onPress={() => void openApp(scheme)} />
+        ) : null}
 
         {guide.note ? (
           <View style={[styles.note, { borderColor: palette.rule }]}>
