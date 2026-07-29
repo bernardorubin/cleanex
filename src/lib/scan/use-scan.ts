@@ -44,18 +44,29 @@ export function useScan(): ScanState {
 
   const scan = useCallback(async () => {
     setPhase('scanning');
+    // Tracks whether this run has actually landed a fresh `result` yet. Only
+    // 'categorized' and 'similarity' progress carry one — 'inventory' does
+    // not. If runScan throws before either fires (e.g. inventory() itself
+    // fails mid-rescan), `result` is untouched and still describes whatever
+    // was on screen before this call, which may predate a delete that just
+    // changed `disk`. Forcing 'ready' in that case would tell the call site
+    // it is safe to read `result` against the just-refreshed `disk`, and it
+    // is not — so phase must stay 'scanning' instead, which is exactly the
+    // gate the call site already uses to hide the figure.
+    let landedFreshResult = false;
     try {
       await runScan((progress) => {
         if (progress.phase === 'inventory') {
           setAssetCount(progress.assetCount);
           return;
         }
+        landedFreshResult = true;
         setResult(progress.result);
         setPhase(progress.phase === 'categorized' ? 'refining' : 'ready');
       });
     } finally {
       setDisk(readDisk());
-      setPhase((current) => (current === 'ready' ? current : 'ready'));
+      if (landedFreshResult) setPhase('ready');
     }
   }, []);
 
