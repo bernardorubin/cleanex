@@ -1,8 +1,15 @@
-import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { useEffect, useRef } from 'react';
+import {
+  AccessibilityInfo,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MainBreaker } from '@/components/main-breaker';
-import { favouriteNote } from '@/lib/scan/browse';
+import { favouriteNote, selectionAnnouncement } from '@/lib/scan/browse';
 import { formatBytes } from '@/lib/scan/estimate';
 import { cardShadow, space, usePalette } from '@/lib/ui/theme';
 
@@ -35,6 +42,24 @@ export function SelectionFooter({
 }: Props) {
   const palette = usePalette();
   const insets = useSafeAreaInsets();
+
+  // VoiceOver never learns this bar exists otherwise — the favourite warning
+  // it can carry is the only guard against deleting something hearted, so a
+  // screen-reader user must hear it too. Announced on appearing and whenever
+  // the favourite count changes, not on every toggle: that would be unbearable.
+  const previous = useRef({ count: 0, favouriteCount: 0 });
+  useEffect(() => {
+    const justAppeared = previous.current.count === 0 && count > 0;
+    const favouriteCountChanged = favouriteCount !== previous.current.favouriteCount;
+
+    if (count > 0 && (justAppeared || favouriteCountChanged)) {
+      AccessibilityInfo.announceForAccessibility(
+        selectionAnnouncement(count, bytes, favouriteCount),
+      );
+    }
+
+    previous.current = { count, favouriteCount };
+  }, [count, bytes, favouriteCount]);
 
   if (count === 0) return null;
 

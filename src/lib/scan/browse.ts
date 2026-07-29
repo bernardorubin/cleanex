@@ -1,3 +1,4 @@
+import { formatBytes } from '@/lib/scan/estimate';
 import type { AssetFact } from '@/lib/scan/types';
 
 /**
@@ -59,4 +60,21 @@ export function favouriteNote(
   if (selectedCount === 1) return 'This item is a favourite.';
   if (favouriteCount === 1) return '1 of these items is a favourite.';
   return `${favouriteCount} of these items are favourites.`;
+}
+
+/**
+ * The VoiceOver announcement for the selection footer: read aloud when it
+ * first appears and whenever the favourite warning changes, since the footer
+ * itself is silent otherwise and that warning is the only guard against
+ * deleting a favourite. Built from favouriteNote so the wording can never
+ * drift from the footer's own visible text.
+ */
+export function selectionAnnouncement(
+  count: number,
+  bytes: number,
+  favouriteCount: number,
+): string {
+  const note = favouriteNote(favouriteCount, count);
+  const base = `${count} ${count === 1 ? 'item' : 'items'} selected, ${formatBytes(bytes)}.`;
+  return note ? `${base} ${note}` : base;
 }

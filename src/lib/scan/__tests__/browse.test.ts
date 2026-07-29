@@ -3,6 +3,7 @@ import {
   countFavourites,
   favouriteNote,
   formatDuration,
+  selectionAnnouncement,
   sortBySizeDesc,
 } from '@/lib/scan/browse';
 import { asset } from '@/lib/scan/__tests__/fixtures';
@@ -131,5 +132,29 @@ describe('formatDuration', () => {
   it('treats zero and negatives as 0:00', () => {
     expect(formatDuration(0)).toBe('0:00');
     expect(formatDuration(-5)).toBe('0:00');
+  });
+});
+
+describe('selectionAnnouncement', () => {
+  it('states the count and size when nothing selected is a favourite', () => {
+    expect(selectionAnnouncement(3, 4_200_000_000, 0)).toBe(
+      '3 items selected, 4.2 GB.',
+    );
+  });
+
+  it('uses singular wording for a single item', () => {
+    expect(selectionAnnouncement(1, 780_000_000, 0)).toBe('1 item selected, 780 MB.');
+  });
+
+  it('appends the favourite note built from favouriteNote', () => {
+    expect(selectionAnnouncement(5, 1_000_000_000, 1)).toBe(
+      `5 items selected, 1.0 GB. ${favouriteNote(1, 5)}`,
+    );
+  });
+
+  it('uses the singular favourite wording when only one item is selected', () => {
+    expect(selectionAnnouncement(1, 1_000_000, 1)).toBe(
+      `1 item selected, 1 MB. ${favouriteNote(1, 1)}`,
+    );
   });
 });

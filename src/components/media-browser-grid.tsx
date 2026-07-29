@@ -106,7 +106,11 @@ function MediaCell({
   const palette = usePalette();
   const isVideo = asset.subtype === 'video' || asset.subtype === 'screenRecording';
 
+  // Video cells keep role="button" — their primary action plays the video,
+  // they are not checkboxes — so "checked" state is never spoken by VoiceOver
+  // for them. The selection state has to live in the label text instead.
   const label = [
+    isVideo && isSelected ? 'Selected' : null,
     isVideo ? 'Video' : 'Photo',
     formatBytes(asset.sizeBytes),
     isVideo ? formatDuration(asset.durationSeconds) : null,
@@ -120,11 +124,13 @@ function MediaCell({
       onPress={() => (isVideo ? onPlay(asset.id) : onToggle(asset.id))}
       onLongPress={() => onToggle(asset.id)}
       accessibilityRole={isVideo ? 'button' : 'checkbox'}
-      accessibilityState={{ checked: isSelected }}
+      accessibilityState={isVideo ? undefined : { checked: isSelected }}
       accessibilityLabel={label}
       accessibilityHint={
         isVideo
-          ? 'Double tap to watch. Touch and hold to select it for deletion.'
+          ? isSelected
+            ? 'Double tap to watch. Touch and hold to remove it from your selection.'
+            : 'Double tap to watch. Touch and hold to select it for deletion.'
           : isSelected
             ? 'Turn off to keep'
             : 'Turn on to delete'
