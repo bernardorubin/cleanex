@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import {
   FlatList,
   Pressable,
@@ -6,6 +6,7 @@ import {
   Text,
   View,
   useWindowDimensions,
+  type ListRenderItemInfo,
 } from 'react-native';
 import { Image } from 'expo-image';
 
@@ -15,11 +16,16 @@ import { formatBytes } from '@/lib/scan/estimate';
 import type { AssetFact } from '@/lib/scan/types';
 import { radius, space, usePalette } from '@/lib/ui/theme';
 
+/** VoiceOver's rotor entry for playback — see the cell's comment below. */
+const PLAY_ACTIONS = [{ name: 'play', label: 'Play video' }];
+
 type Props = {
   /** Already sorted by the caller. This component never reorders. */
   assets: AssetFact[];
   selected: Set<string>;
+  /** Must be referentially stable, or every windowed cell re-renders per tap. */
   onToggle: (id: string) => void;
+  /** Same. */
   onPlay: (id: string) => void;
   /**
    * Extra bottom clearance, on top of the list's own padding — enough that a
@@ -57,10 +63,34 @@ export function MediaBrowserGrid({
     [assets, columns],
   );
 
+  // Hoisted out of the JSX so it is not a new function on every render. It
+  // still closes over `selected`, which changes on every tap — `extraData`
+  // below tells FlatList that, and MediaCell's memo comparison is what stops
+  // the other ~200 windowed cells from re-rendering with it. Only the cell
+  // whose `isSelected` actually flipped does any work.
+  const renderRow = useCallback(
+    ({ item: row }: ListRenderItemInfo<AssetFact[]>) => (
+      <View style={[styles.row, { gap, height: rowHeight }]}>
+        {row.map((asset) => (
+          <MediaCell
+            key={asset.id}
+            asset={asset}
+            size={cell}
+            isSelected={selected.has(asset.id)}
+            onToggle={onToggle}
+            onPlay={onPlay}
+          />
+        ))}
+      </View>
+    ),
+    [cell, gap, rowHeight, selected, onToggle, onPlay],
+  );
+
   return (
     <FlatList
       data={rows}
       keyExtractor={(row) => row[0]?.id ?? 'empty'}
+      extraData={selected}
       removeClippedSubviews
       initialNumToRender={12}
       windowSize={11}
@@ -80,25 +110,18 @@ export function MediaBrowserGrid({
         { paddingTop: topInset, paddingBottom: space.xxxl + bottomInset },
       ]}
       contentInsetAdjustmentBehavior="automatic"
-      renderItem={({ item: row }) => (
-        <View style={[styles.row, { gap, height: rowHeight }]}>
-          {row.map((asset) => (
-            <MediaCell
-              key={asset.id}
-              asset={asset}
-              size={cell}
-              isSelected={selected.has(asset.id)}
-              onToggle={onToggle}
-              onPlay={onPlay}
-            />
-          ))}
-        </View>
-      )}
+      renderItem={renderRow}
     />
   );
 }
 
-function MediaCell({
+/**
+ * Memoized on purpose. `asset` is a stable object from the scan result and the
+ * callbacks are stable from the caller, so the default shallow comparison turns
+ * on `isSelected` alone: the tapped cell re-renders, its ~200 neighbours in the
+ * window do not.
+ */
+const MediaCell = memo(function MediaCell({
   asset,
   size,
   isSelected,
@@ -114,11 +137,11 @@ function MediaCell({
   const palette = usePalette();
   const isVideo = asset.subtype === 'video' || asset.subtype === 'screenRecording';
 
-  // Video cells keep role="button" — their primary action plays the video,
-  // they are not checkboxes — so "checked" state is never spoken by VoiceOver
-  // for them. The selection state has to live in the label text instead.
+  // Tap selects, on every cell in the app. Playback used to own the tap on a
+  // video, which left selecting it to a long press that nothing on screen
+  // mentioned — on the one screen that exists so the biggest video is the
+  // first thing you see. The play badge below carries playback instead.
   const label = [
-    isVideo && isSelected ? 'Selected' : null,
     isVideo ? 'Video' : 'Photo',
     formatBytes(asset.sizeBytes),
     isVideo ? formatDuration(asset.durationSeconds) : null,
@@ -129,19 +152,24 @@ function MediaCell({
 
   return (
     <Pressable
-      onPress={() => (isVideo ? onPlay(asset.id) : onToggle(asset.id))}
+      onPress={() => onToggle(asset.id)}
+      // Kept as a second route to selection: it costs nothing and anyone who
+      // learned it before still has it.
       onLongPress={() => onToggle(asset.id)}
-      accessibilityRole={isVideo ? 'button' : 'checkbox'}
-      accessibilityState={isVideo ? undefined : { checked: isSelected }}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: isSelected }}
       accessibilityLabel={label}
-      accessibilityHint={
+      accessibilityHint={isSelected ? 'Turn off to keep' : 'Turn on to delete'}
+      // VoiceOver collapses a nested button into its accessible parent, so the
+      // play badge would otherwise be unreachable by swipe. This exposes it as
+      // a rotor action on the cell itself.
+      accessibilityActions={isVideo ? PLAY_ACTIONS : undefined}
+      onAccessibilityAction={
         isVideo
-          ? isSelected
-            ? 'Double tap to watch. Touch and hold to remove it from your selection.'
-            : 'Double tap to watch. Touch and hold to select it for deletion.'
-          : isSelected
-            ? 'Turn off to keep'
-            : 'Turn on to delete'
+          ? (event) => {
+              if (event.nativeEvent.actionName === 'play') onPlay(asset.id);
+            }
+          : undefined
       }
       style={[styles.cell, { width: size, height: size }]}>
       <Image
@@ -151,10 +179,17 @@ function MediaCell({
         transition={120}
       />
 
+      {/* Decoration only. Without pointerEvents="none" the topmost of these
+          swallows taps meant for the cell or the play badge underneath. */}
       {isSelected ? (
         <>
-          <View style={[styles.selectedEdge, { borderColor: palette.amber }]} />
-          <View style={[styles.mark, { backgroundColor: palette.amber }]}>
+          <View
+            pointerEvents="none"
+            style={[styles.selectedEdge, { borderColor: palette.amber }]}
+          />
+          <View
+            pointerEvents="none"
+            style={[styles.mark, { backgroundColor: palette.amber }]}>
             <Text style={styles.markGlyph} maxFontSizeMultiplier={1.4}>
               ✓
             </Text>
@@ -168,19 +203,34 @@ function MediaCell({
         </Text>
       ) : null}
 
-      <View style={styles.footer}>
+      <View pointerEvents="none" style={styles.footer}>
         <Text style={styles.size} numberOfLines={1} maxFontSizeMultiplier={1.4}>
           {formatBytes(asset.sizeBytes)}
         </Text>
         {isVideo ? (
           <Text style={styles.size} numberOfLines={1} maxFontSizeMultiplier={1.4}>
-            ▶ {formatDuration(asset.durationSeconds)}
+            {formatDuration(asset.durationSeconds)}
           </Text>
         ) : null}
       </View>
+
+      {/* Last, so nothing above can steal its tap. */}
+      {isVideo ? (
+        <Pressable
+          onPress={() => onPlay(asset.id)}
+          accessibilityRole="button"
+          accessibilityLabel="Play video"
+          style={[styles.play, { backgroundColor: palette.graphite }]}>
+          <Text
+            style={[styles.playGlyph, { color: palette.onGraphite }]}
+            maxFontSizeMultiplier={1.4}>
+            ▶
+          </Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: space.lg, paddingBottom: space.xxxl },
@@ -189,6 +239,27 @@ const styles = StyleSheet.create({
     borderRadius: radius.flag,
     overflow: 'hidden',
     backgroundColor: '#0002',
+  },
+  play: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    // Half of the 44pt target, which is the minimum and not negotiable — this
+    // is the control that makes a video watchable.
+    marginTop: -22,
+    marginLeft: -22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.9,
+  },
+  playGlyph: {
+    fontSize: 17,
+    fontWeight: '700',
+    // The glyph's own bearing sits it left of centre in the circle.
+    marginLeft: 2,
   },
   selectedEdge: {
     position: 'absolute',
