@@ -3,6 +3,7 @@ import Photos
 import Vision
 import UIKit
 import AVKit
+import AVFoundation
 
 public class PhotoScanModule: Module {
   public func definition() -> ModuleDefinition {
@@ -194,6 +195,14 @@ public class PhotoScanModule: Module {
               promise.resolve(false)
               return
             }
+
+            // Without this the app runs under the default .soloAmbient
+            // category, which the hardware ringer switch silences — the user
+            // taps a video, watches it play, and hears nothing, with no reason
+            // on screen why. .playback is what the Photos app itself uses.
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .moviePlayback)
+            try? session.setActive(true)
 
             let player = AVPlayer(playerItem: item)
             let controller = AVPlayerViewController()
