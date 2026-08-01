@@ -1,0 +1,8 @@
+title: Make Room
+description: An iPhone app that helps older and non-technical people recover storage.
+theme: jekyll-theme-minimal
+
+# Internal design specs and implementation plans live under docs/superpowers/.
+# They are useful in the repo but are not part of the published site.
+exclude:
+  - superpowers/

@@ -45,3 +45,6 @@ example
 # Native build output
 /ios
 /android
+
+# Superpowers agent workspaces (review transcripts, scratch)
+.superpowers/
