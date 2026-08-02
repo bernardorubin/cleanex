@@ -32,6 +32,29 @@ export function estimateFreed(assets: AssetFact[], ids: Set<string>): number {
   return total;
 }
 
+/**
+ * Below this, what the scan found is not the answer to "my phone is full".
+ *
+ * A guess, like the noise floor — see CLAUDE.md's unmeasured list. It only
+ * ever decides whether the Clean tab *adds* a pointer to the guides, never
+ * whether the user can delete what was found, so being generous with it costs
+ * a quiet line and being stingy costs the one person this app was built for.
+ */
+export const THIN_FINDING_BYTES = 1_000_000_000;
+
+/**
+ * Whether the scan came back with too little to be the whole story.
+ *
+ * The phone that started this project is permanently full of WhatsApp media,
+ * which lives inside WhatsApp's own container where iOS forbids any app from
+ * looking. A scan of that phone finds almost nothing and, left to itself, the
+ * app declares victory — the worst possible answer for exactly the person it
+ * was built for. This is the test that stops it.
+ */
+export function findingsAreThin(freeableBytes: number): boolean {
+  return freeableBytes < THIN_FINDING_BYTES;
+}
+
 /** "4.2 GB", "780 MB" — plain units, never bytes or decimals below 1 MB. */
 export function formatBytes(bytes: number): string {
   if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;

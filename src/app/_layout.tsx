@@ -32,6 +32,14 @@ export default function RootLayout() {
             options={{ headerShown: true, title: 'Your call', headerBackTitle: 'Back' }}
           />
           <Stack.Screen
+            name="transforms"
+            options={{
+              headerShown: true,
+              title: 'Make things smaller',
+              headerBackTitle: 'Back',
+            }}
+          />
+          <Stack.Screen
             name="guide/[id]"
             options={{ headerShown: true, title: '', headerBackTitle: 'Guides' }}
           />

@@ -1,4 +1,11 @@
-import { deletableIds, estimateFreed, formatBytes, freedMessage } from '@/lib/scan/estimate';
+import {
+  THIN_FINDING_BYTES,
+  deletableIds,
+  estimateFreed,
+  findingsAreThin,
+  formatBytes,
+  freedMessage,
+} from '@/lib/scan/estimate';
 import type { AssetGroup } from '@/lib/scan/types';
 import { asset } from './fixtures';
 
@@ -85,4 +92,25 @@ test('freedMessage always states the 30-day wait and the way to skip it', () => 
 
 test('freedMessage handles a zero total without changing shape', () => {
   expect(freedMessage(0)).toContain('0 bytes is now in Recently Deleted');
+});
+
+test('a scan that found nothing is thin', () => {
+  // The originating case: a phone full of WhatsApp media the app cannot see.
+  expect(findingsAreThin(0)).toBe(true);
+});
+
+test('a scan that found a few hundred megabytes is still thin', () => {
+  expect(findingsAreThin(300_000_000)).toBe(true);
+});
+
+test('a scan one byte short of the threshold is thin', () => {
+  expect(findingsAreThin(THIN_FINDING_BYTES - 1)).toBe(true);
+});
+
+test('a scan at the threshold is a real finding', () => {
+  expect(findingsAreThin(THIN_FINDING_BYTES)).toBe(false);
+});
+
+test('a scan that found gigabytes is a real finding', () => {
+  expect(findingsAreThin(4_200_000_000)).toBe(false);
 });

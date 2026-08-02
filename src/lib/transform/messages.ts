@@ -1,4 +1,5 @@
 import { formatBytes } from '@/lib/scan/estimate';
+import type { Quality } from '@/lib/transform/candidates';
 
 /**
  * Copy for the two flows that behave unlike every other screen in the app:
@@ -32,6 +33,134 @@ export const TRANSFORM_IRREVERSIBLE_SENTENCE =
  */
 export const TRANSFORM_DELAY_SENTENCE =
   'Your phone gets a little fuller before it gets emptier — the original moves to Recently Deleted and sits there for 30 days, using space the whole time.';
+
+/** The Clean tab's way in, and the screen's own opening line. */
+export function transformsLinkLabel(
+  videoCount: number,
+  livePhotoCount: number,
+): string {
+  const parts: string[] = [];
+  if (videoCount > 0) {
+    parts.push(`${videoCount.toLocaleString()} ${videoCount === 1 ? 'big video' : 'big videos'}`);
+  }
+  if (livePhotoCount > 0) {
+    parts.push(
+      `${livePhotoCount.toLocaleString()} ${livePhotoCount === 1 ? 'Live Photo' : 'Live Photos'}`,
+    );
+  }
+  return parts.length > 0
+    ? `Make things smaller · ${parts.join(', ')}`
+    : 'Make things smaller';
+}
+
+export const TRANSFORMS_LEAD =
+  'Not everything big is worth deleting. These two make things smaller ' +
+  'instead, and you keep the photo or video itself.';
+
+export const COMPRESSION_SECTION_TITLE = 'Big videos';
+export const LIVE_PHOTO_SECTION_TITLE = 'Live Photos';
+
+/**
+ * The three qualities, named by what the result looks like rather than by
+ * resolution. Nobody in this audience knows what 1080p means, and a number
+ * they cannot judge is worse than no number: it makes the choice feel
+ * technical, and a technical-feeling choice does not get made at all.
+ */
+export const QUALITY_LABELS: Record<Quality, string> = {
+  sharp: 'Keep it sharp',
+  phone: 'Good for the phone',
+  smallest: 'Smallest',
+};
+
+/** One plain outcome per choice, so the trade-off is legible without jargon. */
+export const QUALITY_DESCRIPTIONS: Record<Quality, string> = {
+  sharp: 'Still looks its best on a big television. Saves the least room.',
+  phone: 'Looks the same on your phone. Saves a lot of room.',
+  smallest: 'Fine to watch on your phone. Saves the most room.',
+};
+
+/** Names the action, and says how many, the way every control in the app does. */
+export function compressionButtonLabel(videoCount: number): string {
+  return `Shrink ${videoCount.toLocaleString()} ${videoCount === 1 ? 'video' : 'videos'}`;
+}
+
+export function livePhotoButtonLabel(count: number): string {
+  return `Convert ${count.toLocaleString()} ${count === 1 ? 'Live Photo' : 'Live Photos'}`;
+}
+
+/**
+ * Safety rule 6: a transform never runs without an explicit confirmation
+ * naming what is irreversible. The estimate opens it, the irreversible
+ * sentence and the late-arriving space follow — in that order, because the
+ * reader has to know what they are getting before they can weigh the cost.
+ */
+export function compressionConfirmTitle(videoCount: number): string {
+  return `${compressionButtonLabel(videoCount)}?`;
+}
+
+export function compressionConfirmBody(
+  videoCount: number,
+  estimatedSavingsBytes: number,
+): string {
+  return [
+    compressionEstimateMessage(videoCount, estimatedSavingsBytes),
+    TRANSFORM_IRREVERSIBLE_SENTENCE,
+    TRANSFORM_DELAY_SENTENCE,
+  ].join('\n\n');
+}
+
+export function livePhotoConfirmTitle(count: number): string {
+  return `${livePhotoButtonLabel(count)}?`;
+}
+
+export function livePhotoConfirmBody(
+  count: number,
+  estimatedSavingsBytes: number,
+): string {
+  return [
+    livePhotoEstimateMessage(count, estimatedSavingsBytes),
+    TRANSFORM_IRREVERSIBLE_SENTENCE,
+    TRANSFORM_DELAY_SENTENCE,
+  ].join('\n\n');
+}
+
+/**
+ * Progress, told honestly.
+ *
+ * Nothing native reports how far through one encode is, so there is no
+ * percentage to show and inventing one would be a lie the user can feel: a
+ * bar that sits at 40% for four minutes reads as broken. What is true and
+ * knowable is which item is being worked on and how many there are.
+ */
+export function compressionProgressMessage(index: number, total: number): string {
+  if (total <= 1) return 'Shrinking your video…';
+  return `Shrinking video ${index.toLocaleString()} of ${total.toLocaleString()}…`;
+}
+
+export function livePhotoProgressMessage(done: number, total: number): string {
+  if (total <= 1) return 'Converting your Live Photo…';
+  return `Converting your Live Photos. ${done.toLocaleString()} of ${total.toLocaleString()} done…`;
+}
+
+/** The way out, required rather than optional — encoding is minutes of a hot phone. */
+export const STOP_TRANSFORM_LABEL = 'Stop';
+
+/**
+ * Shown only when the user stopped before anything finished. When some items
+ * did finish, the measured result message is shown instead — those are
+ * genuinely done, and saying otherwise would be the lie in the other
+ * direction.
+ */
+export const TRANSFORM_STOPPED_MESSAGE =
+  'Stopped. Nothing on your phone was changed.';
+
+export const COMPRESSION_FAILED_MESSAGE =
+  'Those videos could not be shrunk, so nothing on your phone was changed. ' +
+  'They are exactly as they were.';
+
+export const LIVE_PHOTO_CONVERSION_FAILED_MESSAGE =
+  'Those Live Photos could not be converted, so nothing on your phone was ' +
+  'changed. They are exactly as they were.';
 
 /**
  * The pre-compression estimate: how many videos, and roughly how much
@@ -127,6 +256,13 @@ export function livePhotoResultMessage(
 export function binWaitingMessage(bytes: number): string {
   return `${formatBytes(bytes)} is waiting in Recently Deleted. Your phone will not feel any lighter until you clear it from there too.`;
 }
+
+/**
+ * The heading over the steps. It names the outcome the user wants rather
+ * than the chore they have to do — this is the tap that finally makes the
+ * phone feel lighter, and it should read that way.
+ */
+export const BIN_STEPS_TITLE = 'Get the space now';
 
 /** The manual path, since the sandbox blocks the automatic one. */
 export const BIN_STEPS: string[] = [

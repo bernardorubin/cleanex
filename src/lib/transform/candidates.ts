@@ -15,6 +15,31 @@ export const QUALITY_RATIOS: Record<Quality, number> = {
 };
 
 /**
+ * The middle choice, pre-selected. It saves four fifths of the bytes and the
+ * result is indistinguishable on the only screen this footage is realistically
+ * ever watched on, so it is the right answer for almost everyone — and a
+ * default that is right for almost everyone is what lets this audience press
+ * the button without having to weigh a decision they were never equipped to
+ * make.
+ */
+export const DEFAULT_QUALITY: Quality = 'phone';
+
+/**
+ * Proportion of a Live Photo's size that the still image alone accounts for.
+ *
+ * A Live Photo is a still plus roughly three seconds of video, and the video
+ * half is close to the size of the still — that is the whole reason this
+ * feature exists. Keeping the still and dropping the motion therefore saves
+ * about half, and unlike compression nothing is re-encoded: the still is
+ * copied out untouched, so the surviving half is exactly the size it already
+ * was.
+ *
+ * Nominal, like QUALITY_RATIOS — the real figure comes from the measured
+ * before/after byte counts the transform reports afterwards, never from here.
+ */
+export const LIVE_PHOTO_STILL_RATIO = 0.5;
+
+/**
  * Large videos worth offering a re-encode for.
  *
  * Favourites are excluded per safety rule 1: the app never puts a favourite
@@ -66,6 +91,21 @@ export function estimateSaving(assets: AssetFact[], quality: Quality): number {
   let saved = 0;
   for (const asset of assets) {
     saved += asset.sizeBytes * (1 - ratio);
+  }
+  return saved;
+}
+
+/**
+ * Bytes saved if every given Live Photo were flattened to its still.
+ *
+ * Separate from estimateSaving because flattening is not a quality choice:
+ * there is one outcome, so there is no preset to pass and nothing for the
+ * user to weigh. Always >= 0 for the same reason estimateSaving is.
+ */
+export function estimateLivePhotoSaving(assets: AssetFact[]): number {
+  let saved = 0;
+  for (const asset of assets) {
+    saved += asset.sizeBytes * (1 - LIVE_PHOTO_STILL_RATIO);
   }
   return saved;
 }

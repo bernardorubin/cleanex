@@ -67,6 +67,45 @@ export function browseLinkLabel(
 }
 
 /**
+ * What the Clean tab says instead of "Nothing to clean up."
+ *
+ * That sentence was the app's worst answer, and it was reserved for the
+ * person it was written for: a phone permanently full of WhatsApp media,
+ * which lives inside WhatsApp's own container where iOS forbids every app —
+ * this one included — from looking. The scan finds nothing, and the app
+ * congratulates itself while the phone is still too full to take a photo.
+ *
+ * So it stops declaring victory and says where the room actually went. Three
+ * things have to be true of this copy at once: it must not imply CleanEx can
+ * reach that storage (it cannot, ever), it must not read as a failure or an
+ * apology, and it must leave one plain thing to press.
+ */
+export function nothingFoundLead(assetCount: number): string {
+  if (assetCount <= 0) {
+    return 'There are no photos or videos on your phone for CleanEx to look through.';
+  }
+  return `We looked through ${assetCount.toLocaleString()} photos and videos and did not find much worth deleting.`;
+}
+
+export const NOTHING_FOUND_BODY =
+  'That does not mean your phone is empty. Photos and videos people send ' +
+  'you in WhatsApp and other messaging apps are kept inside those apps, and ' +
+  'no app on your phone — including this one — is allowed to look in there. ' +
+  'On a phone that stays full, that is usually where the room has gone. ' +
+  'CleanEx cannot clear it for you, but the guides show you exactly what to ' +
+  'tap, step by step.';
+
+/** The one thing to press when the breaker has nothing to throw. */
+export const NOTHING_FOUND_ACTION = 'Show me the guides';
+
+/**
+ * The quieter version, for a scan that found something but not much. The
+ * directory and the breaker still stand — this only adds the other half of
+ * the answer underneath them.
+ */
+export const SPACE_ELSEWHERE_LINK_LABEL = 'Where else your space might be';
+
+/**
  * The guide screen's result after a trip to another app. Unlike a photo-library
  * delete, this one *is* a real measurement: the other app clears its own
  * container, so free space genuinely moves while CleanEx is in the

@@ -3,17 +3,22 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BinFlow } from '@/components/bin-flow';
 import { Directory, type DirectoryEntry } from '@/components/directory';
 import { MainBreaker } from '@/components/main-breaker';
 import { Nameplate } from '@/components/nameplate';
 import { QuietLink } from '@/components/quiet-link';
 import { ScanInterlude } from '@/components/scan-interlude';
 import { confirmDelete, deleteSelected } from '@/lib/scan/delete';
-import { formatBytes, freedMessage } from '@/lib/scan/estimate';
+import { findingsAreThin, formatBytes, freedMessage } from '@/lib/scan/estimate';
 import {
+  NOTHING_FOUND_ACTION,
+  NOTHING_FOUND_BODY,
   PERMISSION_DENIED_LEAD,
   PERMISSION_DENIED_STEPS,
+  SPACE_ELSEWHERE_LINK_LABEL,
   browseLinkLabel,
+  nothingFoundLead,
 } from '@/lib/scan/messages';
 import { useScanState } from '@/lib/scan/scan-context';
 import {
@@ -21,15 +26,27 @@ import {
   CATEGORY_LABELS,
   type CategoryId,
 } from '@/lib/scan/types';
+import { useStorageProgress } from '@/lib/storage/use-storage-progress';
+import { compressibleVideos, livePhotoCandidates } from '@/lib/transform/candidates';
+import { transformsLinkLabel } from '@/lib/transform/messages';
 import { space, usePalette } from '@/lib/ui/theme';
+
+/** What the last delete put into Recently Deleted, and what to say about it. */
+type Receipt = { message: string; bytes: number };
 
 export default function CleanScreen() {
   const palette = usePalette();
   const { permission, phase, result, assetCount, disk, request, rescan } = useScanState();
 
+  // Records this launch's disk reading and returns the one honest line the
+  // history supports — or null, which is what a phone gets for its first two
+  // weeks. Null renders nothing at all: the same discipline as the
+  // nameplate's unreachable-storage figure, and not a missing-data state.
+  const storageProgress = useStorageProgress();
+
   // Which categories are armed. Safe ones start on; judgement calls start off.
   const [armed, setArmed] = useState<Set<CategoryId>>(new Set(AUTO_SAFE_CATEGORIES));
-  const [freed, setFreed] = useState<string | null>(null);
+  const [freed, setFreed] = useState<Receipt | null>(null);
 
   const entries = useMemo<DirectoryEntry[]>(() => {
     if (!result) return [];
@@ -64,6 +81,17 @@ export default function CleanScreen() {
     [result],
   );
 
+  // What the other screen can offer: things worth shrinking rather than
+  // deleting. Counted here so the link can say what is behind it, and so it
+  // never leads to an empty screen.
+  const shrinkable = useMemo(() => {
+    if (!result) return { videos: 0, livePhotos: 0 };
+    return {
+      videos: compressibleVideos(result.assets).length,
+      livePhotos: livePhotoCandidates(result.assets).length,
+    };
+  }, [result]);
+
   function toggle(key: string) {
     setArmed((current) => {
       const next = new Set(current);
@@ -82,7 +110,7 @@ export default function CleanScreen() {
     // Deleted, still on the disk for 30 days. Report what left the library and
     // when the space comes back. Shared with /browse so the wording cannot
     // drift between the two screens.
-    setFreed(freedMessage(removedBytes));
+    setFreed({ message: freedMessage(removedBytes), bytes: removedBytes });
     await rescan();
   }
 
@@ -120,13 +148,25 @@ export default function CleanScreen() {
           }
         />
 
+        {storageProgress ? (
+          <Text
+            style={[styles.progressLine, { color: palette.inkSecondary }]}
+            maxFontSizeMultiplier={1.8}>
+            {storageProgress}
+          </Text>
+        ) : null}
+
         {freed ? (
           <View style={[styles.receipt, { borderColor: palette.rule }]}>
             <Text
               style={[styles.receiptText, { color: palette.ink }]}
               maxFontSizeMultiplier={1.8}>
-              {freed}
+              {freed.message}
             </Text>
+            {/* Deleting does not free space — the assets sit in Recently
+                Deleted for 30 days. This is the only route to the space
+                today, and no app is allowed to take it for them. */}
+            <BinFlow bytes={freed.bytes} />
           </View>
         ) : null}
 
@@ -180,24 +220,41 @@ export default function CleanScreen() {
               label="Check what will be deleted"
               onPress={() => router.push('/review')}
             />
+
+            {/* Found something, but not enough to be the whole story. The
+                breaker still stands; this only adds the other half of the
+                answer underneath it. */}
+            {findingsAreThin(fresh.totalFreeableBytes) ? (
+              <QuietLink
+                label={SPACE_ELSEWHERE_LINK_LABEL}
+                onPress={() => router.navigate('/guides')}
+              />
+            ) : null}
           </>
         ) : null}
 
+        {/* The scan found nothing. It must not read as victory: on a phone
+            whose room has gone into WhatsApp — inside a container iOS lets
+            no app open — "Nothing to clean up." was a congratulation
+            delivered to someone who still cannot take a photo. */}
         {fresh && entries.length === 0 ? (
           <View style={styles.empty}>
             <Text
               style={[styles.emptyTitle, { color: palette.ink }]}
               maxFontSizeMultiplier={1.8}>
-              Nothing to clean up.
+              {nothingFoundLead(fresh.assets.length)}
             </Text>
             <Text
               style={[styles.emptyBody, { color: palette.inkSecondary }]}
               maxFontSizeMultiplier={1.8}>
-              We looked through {fresh.assets.length.toLocaleString()} photos and
-              videos and did not find copies or clutter worth deleting. You can
-              still look through everything on your phone yourself and delete
-              anything you do not want.
+              {NOTHING_FOUND_BODY}
             </Text>
+            <View style={styles.emptyAction}>
+              <MainBreaker
+                label={NOTHING_FOUND_ACTION}
+                onPress={() => router.navigate('/guides')}
+              />
+            </View>
           </View>
         ) : null}
 
@@ -205,6 +262,16 @@ export default function CleanScreen() {
             this is the only route left to the screen that shows the user their
             400 MB video — and "Nothing to clean up" with no way forward is the
             origin case with the answer removed. */}
+        {/* Also outside both branches: the pile worth shrinking rather than
+            deleting is exactly the pile the breaker refuses to touch, so it
+            has to be reachable from the screen that found nothing too. */}
+        {fresh && shrinkable.videos + shrinkable.livePhotos > 0 ? (
+          <QuietLink
+            label={transformsLinkLabel(shrinkable.videos, shrinkable.livePhotos)}
+            onPress={() => router.push('/transforms')}
+          />
+        ) : null}
+
         {fresh && libraryBytes !== null ? (
           <QuietLink
             label={browseLinkLabel(fresh.assets.length, libraryBytes, disk.usedBytes)}
@@ -284,15 +351,22 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: -space.sm,
   },
+  progressLine: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: -space.sm,
+  },
   receipt: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 10,
     padding: space.md,
+    gap: space.md,
   },
   receiptText: { fontSize: 15, lineHeight: 21 },
-  empty: { gap: space.sm, paddingVertical: space.xl },
-  emptyTitle: { fontSize: 20, fontWeight: '600' },
-  emptyBody: { fontSize: 15, lineHeight: 21 },
+  empty: { gap: space.md, paddingVertical: space.xl },
+  emptyTitle: { fontSize: 20, fontWeight: '600', lineHeight: 26 },
+  emptyBody: { fontSize: 15, lineHeight: 22 },
+  emptyAction: { marginTop: space.sm },
   primer: {
     flex: 1,
     padding: space.xl,

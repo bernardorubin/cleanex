@@ -15,14 +15,8 @@ import { Paths } from 'expo-file-system';
 import { MainBreaker } from '@/components/main-breaker';
 import { findGuide } from '@/lib/guides/content';
 import { guideFreedMessage } from '@/lib/scan/messages';
+import { reportableGain } from '@/lib/storage/free-space';
 import { cardShadow, radius, space, stencil, usePalette } from '@/lib/ui/theme';
-
-/**
- * iOS purges caches and downloads iCloud assets on its own, so a small change
- * in free space cannot be attributed to anything the user did. Below this we
- * say nothing rather than report a number we cannot stand behind.
- */
-const NOISE_FLOOR_BYTES = 200_000_000;
 
 export default function GuideScreen() {
   const palette = usePalette();
@@ -36,9 +30,11 @@ export default function GuideScreen() {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state !== 'active' || freeBefore.current === null) return;
 
-      const delta = (Paths.availableDiskSpace ?? 0) - freeBefore.current;
+      // The same noise floor the bin flow measures against, in one place so
+      // the two cannot disagree about what counts as a real gain.
+      const delta = reportableGain(freeBefore.current, Paths.availableDiskSpace ?? 0);
       freeBefore.current = null;
-      if (delta < NOISE_FLOOR_BYTES) return;
+      if (delta === null) return;
 
       setRecovered(delta);
       // This line appears mid-scroll on returning from another app, so

@@ -1,7 +1,10 @@
 import {
   compressibleVideos,
+  DEFAULT_QUALITY,
+  estimateLivePhotoSaving,
   estimateSaving,
   livePhotoCandidates,
+  LIVE_PHOTO_STILL_RATIO,
   QUALITY_RATIOS,
 } from '@/lib/transform/candidates';
 import { asset } from '@/lib/scan/__tests__/fixtures';
@@ -164,5 +167,36 @@ describe('estimateSaving', () => {
 
     const tiny = asset({ sizeBytes: 1 });
     expect(estimateSaving([tiny], 'smallest')).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('DEFAULT_QUALITY', () => {
+  it('pre-selects the middle choice, not the most aggressive one', () => {
+    expect(DEFAULT_QUALITY).toBe('phone');
+  });
+});
+
+describe('estimateLivePhotoSaving', () => {
+  it('returns 0 for an empty list', () => {
+    expect(estimateLivePhotoSaving([])).toBe(0);
+  });
+
+  it('saves the video half — about half the size', () => {
+    expect(LIVE_PHOTO_STILL_RATIO).toBe(0.5);
+    const live = asset({ sizeBytes: 6_000_000, isLivePhoto: true });
+    expect(estimateLivePhotoSaving([live])).toBe(3_000_000);
+  });
+
+  it('sums saved bytes across many Live Photos', () => {
+    const a = asset({ id: 'a', sizeBytes: 6_000_000, isLivePhoto: true });
+    const b = asset({ id: 'b', sizeBytes: 4_000_000, isLivePhoto: true });
+    expect(estimateLivePhotoSaving([a, b])).toBe(5_000_000);
+  });
+
+  it('never returns a negative number', () => {
+    expect(estimateLivePhotoSaving([asset({ sizeBytes: 0 })])).toBe(0);
+    expect(
+      estimateLivePhotoSaving([asset({ sizeBytes: 1 })]),
+    ).toBeGreaterThanOrEqual(0);
   });
 });

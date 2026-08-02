@@ -11,6 +11,7 @@ import {
 import { Stack } from 'expo-router';
 import { playVideo } from '@modules/photo-scan';
 
+import { BinFlow } from '@/components/bin-flow';
 import { MediaBrowserGrid } from '@/components/media-browser-grid';
 import { ScanInterlude } from '@/components/scan-interlude';
 import { SelectionFooter } from '@/components/selection-footer';
@@ -31,7 +32,7 @@ export default function BrowseScreen() {
   const { result, rescan, phase, assetCount } = useScanState();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [footerHeight, setFooterHeight] = useState(0);
-  const [freed, setFreed] = useState<string | null>(null);
+  const [freed, setFreed] = useState<{ message: string; bytes: number } | null>(null);
   const [freedHeight, setFreedHeight] = useState(0);
   const [openingVideo, setOpeningVideo] = useState(false);
 
@@ -82,7 +83,7 @@ export default function BrowseScreen() {
     // Deleted, still occupying the disk for 30 days. The same wording as the
     // Clean tab so the two screens cannot drift.
     const message = freedMessage(removedBytes);
-    setFreed(message);
+    setFreed({ message, bytes: removedBytes });
     // The receipt is a silent, absolutely-positioned card after a 30,000-cell
     // list in accessibility order — VoiceOver would neither speak it nor
     // reliably reach it by swipe without this. Queued: it lands the same
@@ -176,8 +177,13 @@ export default function BrowseScreen() {
             <Text
               style={[styles.freedText, { color: palette.ink }]}
               maxFontSizeMultiplier={1.8}>
-              {freed}
+              {freed.message}
             </Text>
+            {/* The same bin flow the Clean tab shows. Deleting moves assets
+                to Recently Deleted, where they keep occupying storage for 30
+                days — these steps are the only way to have the space today,
+                and no app is allowed to take them for the user. */}
+            <BinFlow bytes={freed.bytes} />
           </View>
         ) : null}
 
@@ -224,6 +230,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     borderWidth: StyleSheet.hairlineWidth,
     padding: space.md,
+    gap: space.md,
   },
   freedText: { fontSize: 15, lineHeight: 21 },
   opening: {
