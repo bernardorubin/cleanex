@@ -8,7 +8,7 @@ title: Support
 
 The best way to report a problem or ask a question is to open an issue:
 
-**[github.com/bernardorubin/make-room/issues](https://github.com/bernardorubin/make-room/issues)**
+**[github.com/bernardorubin/cleanex/issues](https://github.com/bernardorubin/cleanex/issues)**
 
 It helps to include which iPhone you have, which version of iOS it is running,
 and what you were doing when the problem happened.

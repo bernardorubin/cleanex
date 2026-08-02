@@ -12,4 +12,4 @@ photos never leave your phone.
 
 - [Privacy Policy](privacy)
 - [Support](support)
-- [Source code on GitHub](https://github.com/bernardorubin/make-room)
+- [Source code on GitHub](https://github.com/bernardorubin/cleanex)

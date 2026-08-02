@@ -149,6 +149,14 @@ WhatsApp is impossible; reaching the copies it left in Photos is not.
 - **iOS cannot be compiled on this Mac.** The iOS 26.5 SDK is installed but there
   are zero simulator runtimes, so `xcodebuild` reports no destinations.
   `swiftc -parse` checks syntax only; real compilation happens on EAS.
+- **Two `make-room` identifiers are deliberately NOT renamed.** The app became
+  CleanEx, but `src/lib/notify/weekly.ts:3`
+  (`'make-room-weekly-review'`) is the handle used to cancel a previously
+  scheduled local notification — change it and a device that already has the
+  old one scheduled gets two weekly reminders instead of one. And
+  `src/lib/scan/cache.ts:18` (`make-room-v1.db`) is the SQLite filename;
+  renaming it orphans the existing cache on disk instead of replacing it, which
+  wastes storage in a storage app. Leave both.
 - **`sed` on macOS needs `LC_ALL=C`** — without it `sed -i ''` aborts with
   "illegal byte sequence" on files containing em dashes and leaves a rename
   half-applied. Always grep afterwards.

@@ -42,7 +42,7 @@ Your photos never leave your phone. There is no backend, no account, and
 nothing is uploaded. All scanning happens on-device through Apple's PhotoKit
 and Vision frameworks.
 
-Full policy: [Privacy](https://bernardorubin.github.io/make-room/privacy)
+Full policy: [Privacy](https://bernardorubin.github.io/cleanex/privacy)
 
 ## Architecture
 

@@ -65,8 +65,8 @@ changes.
 ## Contact
 
 Questions about privacy, or anything else, can be raised at
-[github.com/bernardorubin/make-room/issues](https://github.com/bernardorubin/make-room/issues).
+[github.com/bernardorubin/cleanex/issues](https://github.com/bernardorubin/cleanex/issues).
 
 CleanEx is open source. If you would rather verify these claims than take
 them on trust, the entire source is at
-[github.com/bernardorubin/make-room](https://github.com/bernardorubin/make-room).
+[github.com/bernardorubin/cleanex](https://github.com/bernardorubin/cleanex).
