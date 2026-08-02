@@ -1,8 +1,8 @@
 ---
-title: Make Room
+title: CleanEx
 ---
 
-# Make Room
+# CleanEx
 
 An iPhone app that helps older and non-technical people recover storage and
 understand where it went.

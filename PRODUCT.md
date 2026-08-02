@@ -33,7 +33,7 @@ because reviewing last week's photos became a small weekly habit.
 ## Positioning
 
 Every competitor is a photo-library cleaner presented as a storage tool, built
-for people who already understand storage. Make Room does the same scanning work
+for people who already understand storage. CleanEx does the same scanning work
 and is honest about what it cannot reach, then spends its design budget on
 being comprehensible to someone who finds the iPhone's own storage screen
 confusing.
@@ -81,7 +81,7 @@ Spanish version is plausible given the name and audience but is not committed.
 
 ## Brand Commitments
 
-Name: **Make Room**. Two everyday words that state the outcome, chosen so a
+Name: **CleanEx**. Two everyday words that state the outcome, chosen so a
 non-technical reader understands the app without decoding a metaphor or
 learning a brand. Also matches what people actually search for.
 

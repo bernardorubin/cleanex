@@ -122,7 +122,7 @@ export async function saveClusters(
   }
 }
 
-/** Drops cached rows for assets the user deleted outside Make Room. */
+/** Drops cached rows for assets the user deleted outside CleanEx. */
 export async function pruneMissing(
   db: SQLite.SQLiteDatabase,
   liveIds: string[],

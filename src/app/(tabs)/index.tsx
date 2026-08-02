@@ -110,7 +110,7 @@ export default function CleanScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic">
-        <Text style={[styles.title, { color: palette.ink }]}>Make Room</Text>
+        <Text style={[styles.title, { color: palette.ink }]}>CleanEx</Text>
 
         <Nameplate
           usedBytes={disk.usedBytes}
@@ -221,12 +221,12 @@ function PermissionPrimer({ onContinue }: { onContinue: () => void }) {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: palette.panel }]}>
       <View style={styles.primer}>
-        <Text style={[styles.title, { color: palette.ink }]}>Make Room</Text>
+        <Text style={[styles.title, { color: palette.ink }]}>CleanEx</Text>
         <Text style={[styles.primerLead, { color: palette.ink }]}>
           Your phone is probably storing the same photo several times over.
         </Text>
         <Text style={[styles.primerBody, { color: palette.inkSecondary }]}>
-          To find those copies, Make Room needs to look at your photos. It all
+          To find those copies, CleanEx needs to look at your photos. It all
           happens on your phone. Nothing is uploaded, nothing is sent anywhere,
           and nothing is deleted until you say so.
         </Text>

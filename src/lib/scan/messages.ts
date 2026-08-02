@@ -16,7 +16,7 @@ import { otherStorageBytes } from '@/lib/storage/breakdown';
  * thing this sentence is written to avoid.
  */
 export const SCAN_FAILED_MESSAGE =
-  'Make Room could not finish looking through your photos, so it cannot show ' +
+  'CleanEx could not finish looking through your photos, so it cannot show ' +
   'you what is on your phone right now. Nothing was undone — anything you ' +
   'deleted is still deleted.';
 
@@ -36,9 +36,9 @@ export function scanProgressMessage(assetCount: number): string {
  * tab sets the first line larger — the wording itself must not differ between
  * that screen and any other that hits the same wall.
  */
-export const PERMISSION_DENIED_LEAD = 'Make Room cannot see your photos yet.';
+export const PERMISSION_DENIED_LEAD = 'CleanEx cannot see your photos yet.';
 export const PERMISSION_DENIED_STEPS =
-  'Open the Settings app, find Make Room in the list, tap Photos, and choose ' +
+  'Open the Settings app, find CleanEx in the list, tap Photos, and choose ' +
   'All Photos. Then come back here.';
 
 /**
@@ -69,7 +69,7 @@ export function browseLinkLabel(
 /**
  * The guide screen's result after a trip to another app. Unlike a photo-library
  * delete, this one *is* a real measurement: the other app clears its own
- * container, so free space genuinely moves while Make Room is in the
+ * container, so free space genuinely moves while CleanEx is in the
  * background. Spoken to VoiceOver as well as shown, hence one function.
  */
 export function guideFreedMessage(bytes: number): string {

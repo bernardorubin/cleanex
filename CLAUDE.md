@@ -1,4 +1,4 @@
-# Make Room
+# CleanEx
 
 iOS-only Expo app that helps older / non-technical iPhone owners recover storage.
 Free forever, no backend, no accounts, no analytics, **no network calls of any kind**.
@@ -125,7 +125,7 @@ cleaner. The `Guides` tab exists to say this honestly.
 
 **But note the important nuance:** WhatsApp on iOS auto-saves received media to
 the camera roll by default ("Save to Camera Roll" in WhatsApp → Settings →
-Chats). That media *is* in the Photos library and Make Room can already see and
+Chats). That media *is* in the Photos library and CleanEx can already see and
 delete it — the app just does not label it as WhatsApp today. Reaching *into*
 WhatsApp is impossible; reaching the copies it left in Photos is not.
 

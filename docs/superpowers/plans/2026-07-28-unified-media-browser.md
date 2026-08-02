@@ -1128,7 +1128,7 @@ export default function BrowseScreen() {
         ) : (
           <View style={styles.empty}>
             <Text style={[styles.emptyText, { color: palette.inkSecondary }]}>
-              Nothing here yet. Make Room is still looking through your photos.
+              Nothing here yet. CleanEx is still looking through your photos.
             </Text>
           </View>
         )}
@@ -1252,7 +1252,7 @@ In the same file, replace the `accessibilityLabel` expression on the plate `View
       )} used. ${formatBytes(freeBytes)} free.${
         otherBytes === null
           ? ''
-          : ` ${formatBytes(otherBytes)} is used by apps and everything else, which Make Room cannot open.`
+          : ` ${formatBytes(otherBytes)} is used by apps and everything else, which CleanEx cannot open.`
       }`}
 ```
 
@@ -1408,7 +1408,7 @@ In `app.json`, add `LSApplicationQueriesSchemes` inside `expo.ios.infoPlist`, al
 ```json
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Make Room looks through your photos to find copies and big files you can safely delete. Your photos never leave your phone.",
+        "NSPhotoLibraryUsageDescription": "CleanEx looks through your photos to find copies and big files you can safely delete. Your photos never leave your phone.",
         "LSApplicationQueriesSchemes": ["whatsapp"]
       },
 ```

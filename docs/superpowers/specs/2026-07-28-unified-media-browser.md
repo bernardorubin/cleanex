@@ -1,4 +1,4 @@
-# Make Room — Unified media browser
+# CleanEx — Unified media browser
 
 **Date:** 2026-07-28
 **Status:** Approved, ready for implementation planning
@@ -16,7 +16,7 @@ both. To a non-technical person that split is arbitrary and invisible, and it
 means there is no single answer to "what is filling my phone" and nowhere to go
 to clear it.
 
-Make Room should be that single place: **everything on the device, in one list,
+CleanEx should be that single place: **everything on the device, in one list,
 largest first, deletable in one action.** Where a photo came from is not a
 question the user should have to hold in their head.
 
@@ -182,7 +182,7 @@ feature gains.
 
 **Copy addition.** Auto-save stores every chat photo **twice**, once in WhatsApp
 and once in Photos. Turning it off saves real space. The guide says so plainly
-even though it puts future media beyond Make Room's reach — trading the user's
+even though it puts future media beyond CleanEx's reach — trading the user's
 storage for our own reach is the thing this product exists not to do.
 
 ## 9. Relationship to existing surfaces

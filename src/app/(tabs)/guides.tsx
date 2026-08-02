@@ -17,7 +17,7 @@ export default function GuidesScreen() {
 
         <Text style={[styles.lead, { color: palette.inkSecondary }]}>
           Some space is locked away where no app is allowed to reach — not
-          Make Room, not any other. Here is exactly how to get it back yourself.
+          CleanEx, not any other. Here is exactly how to get it back yourself.
         </Text>
 
         <View style={[styles.card, { backgroundColor: palette.card }, cardShadow]}>

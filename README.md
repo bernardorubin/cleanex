@@ -1,4 +1,4 @@
-# Make Room
+# CleanEx
 
 An iPhone app that helps older and non-technical people recover storage and
 understand where it went.
@@ -30,7 +30,7 @@ days in Recently Deleted.
 Every "storage cleaner" on the App Store is really a photo-library cleaner. iOS
 forbids any app from reading or deleting another app's storage — WhatsApp's
 private media is unreachable, a per-app storage breakdown is impossible, and
-"System Data" cannot be cleared by anyone. Make Room says so plainly and hands
+"System Data" cannot be cleared by anyone. CleanEx says so plainly and hands
 you the manual steps instead of implying coverage it does not have.
 
 It also skips blurry-photo and burst detection. False positives on an

@@ -1,4 +1,4 @@
-# Make Room — Design
+# CleanEx — Design
 
 **Date:** 2026-07-27
 **Status:** Approved, ready for implementation planning
@@ -30,7 +30,7 @@ native Swift app cannot do them either.
 
 Only `Linking.openSettings()` (the app's own settings page) is permitted.
 
-**Consequence:** every storage cleaner on the App Store is a *photo library* cleaner. Make Room
+**Consequence:** every storage cleaner on the App Store is a *photo library* cleaner. CleanEx
 is too, and says so honestly rather than implying otherwise.
 
 **The useful reframe:** photos saved from WhatsApp into the camera roll carry no camera EXIF
@@ -41,7 +41,7 @@ actually lands.
 ## 3. Positioning
 
 **Audience:** older and non-technical iPhone users.
-**Wedge:** radical simplicity. Competitors present grids of numbers for power users. Make Room
+**Wedge:** radical simplicity. Competitors present grids of numbers for power users. CleanEx
 explains, in plain language, one decision at a time.
 **Price:** free forever, no monetization. No accounts, no backend, no paywall, no analytics
 service. Everything stays on the device.
@@ -306,7 +306,7 @@ cancel, permission denied, permission set to Limited, airplane mode with iCloud 
 | Platform | iOS only, 17+ |
 | Stack | Expo SDK 57 + one local Swift module |
 | Navigation | Expo Router `NativeTabs` (Liquid Glass free on iOS 26) |
-| Name | Make Room — replaced "Limpio", whose name was already reserved in App Store Connect |
+| Name | CleanEx — replaced "Limpio", whose name was already reserved in App Store Connect |
 | Repo | Private |
 
 UI implementation will use the `impeccable` skill.

@@ -1,4 +1,4 @@
-# Make Room — Plan 1: Foundation & Scan Pipeline Implementation Plan
+# CleanEx — Plan 1: Foundation & Scan Pipeline Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -67,7 +67,7 @@ make-room/
 
 ---
 
-### Task 1: Scaffold Make Room and lock tooling
+### Task 1: Scaffold CleanEx and lock tooling
 
 **Files:**
 - Create: `package.json`, `app.json`, `tsconfig.json`, `jest.config.js`, `src/app/_layout.tsx`, `src/app/index.tsx`, `.gitignore`
@@ -120,7 +120,7 @@ import { ScrollView, Text } from 'react-native';
 export default function DevScreen() {
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic">
-      <Text style={{ fontSize: 24, padding: 16 }}>Make Room</Text>
+      <Text style={{ fontSize: 24, padding: 16 }}>CleanEx</Text>
     </ScrollView>
   );
 }
@@ -171,7 +171,7 @@ Set the identity, the iOS 17 target, and the photo permission string. The usage 
 ```json
 {
   "expo": {
-    "name": "Make Room",
+    "name": "CleanEx",
     "slug": "make-room",
     "owner": "bernardorubin",
     "version": "0.1.0",
@@ -183,7 +183,7 @@ Set the identity, the iOS 17 target, and the photo permission string. The usage 
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Make Room looks through your photos to find copies and big files you can safely delete. Your photos never leave your phone."
+        "NSPhotoLibraryUsageDescription": "CleanEx looks through your photos to find copies and big files you can safely delete. Your photos never leave your phone."
       }
     },
     "plugins": [
@@ -233,13 +233,13 @@ Expected: 1 test passes, no type errors.
 - [ ] **Step 10: Verify the app builds on device**
 
 Run: `pnpm ios`
-Expected: app launches on simulator showing "Make Room".
+Expected: app launches on simulator showing "CleanEx".
 
 - [ ] **Step 11: Commit**
 
 ```bash
 git add -A
-git commit -m "Scaffold Make Room Expo app with strict TS and jest"
+git commit -m "Scaffold CleanEx Expo app with strict TS and jest"
 ```
 
 ---
@@ -381,7 +381,7 @@ export default function DevScreen() {
 
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" style={{ padding: 16 }}>
-      <Text style={{ fontSize: 24 }}>Make Room</Text>
+      <Text style={{ fontSize: 24 }}>CleanEx</Text>
       <Text style={{ marginVertical: 12 }}>Permission: {status}</Text>
       <Button
         title="Request photo access"
@@ -631,7 +631,7 @@ export default function DevScreen() {
 
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" style={{ padding: 16 }}>
-      <Text style={{ fontSize: 24 }}>Make Room</Text>
+      <Text style={{ fontSize: 24 }}>CleanEx</Text>
       <Text style={{ marginVertical: 12 }}>Permission: {status}</Text>
       <Button title="Request access" onPress={async () => setStatus(await requestPhotoPermission())} />
       <Button title="Run inventory benchmark" onPress={runBenchmark} />
@@ -1747,7 +1747,7 @@ export async function saveClusters(
   }
 }
 
-/** Drops cached rows for assets the user deleted outside Make Room. */
+/** Drops cached rows for assets the user deleted outside CleanEx. */
 export async function pruneMissing(
   db: SQLite.SQLiteDatabase,
   liveIds: string[],

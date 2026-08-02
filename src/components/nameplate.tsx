@@ -42,7 +42,7 @@ export function Nameplate({ usedBytes, totalBytes, photoLibraryBytes }: Props) {
       )} used. ${formatBytes(freeBytes)} free.${
         otherBytes === null
           ? ''
-          : ` ${formatBytes(otherBytes)} is used by apps and everything else, which Make Room cannot open.`
+          : ` ${formatBytes(otherBytes)} is used by apps and everything else, which CleanEx cannot open.`
       }`}>
       {/* Lighter top edge reads as bevelled metal under room light. */}
       <View style={[styles.bevel, { backgroundColor: palette.onGraphite }]} />
