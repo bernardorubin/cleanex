@@ -12,6 +12,7 @@ export function asset(over: Partial<AssetFact> = {}): AssetFact {
     subtype: 'photo',
     isCameraOriginal: true,
     isFavorite: false,
+    isLivePhoto: false,
     ...over,
   };
 }

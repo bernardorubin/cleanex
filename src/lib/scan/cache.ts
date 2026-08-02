@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 import { SCAN_SCHEMA_VERSION, type AssetFact, type AssetSubtype } from '@/lib/scan/types';
+import type { DiskSample } from '@/lib/storage/history';
 
 type Row = {
   id: string;
@@ -31,6 +32,11 @@ export async function openCache(): Promise<SQLite.SQLiteDatabase> {
       clusterId        TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_assets_created ON assets(createdAt);
+    CREATE TABLE IF NOT EXISTS disk_history (
+      sampledAt  INTEGER PRIMARY KEY NOT NULL,
+      freeBytes  INTEGER NOT NULL,
+      totalBytes INTEGER NOT NULL
+    );
   `);
   return db;
 }
@@ -63,6 +69,11 @@ function toAssetFact(row: Row): AssetFact {
     subtype: row.subtype as AssetSubtype,
     isCameraOriginal: row.isCameraOriginal === 1,
     isFavorite: row.isFavorite === 1,
+    // Not persisted: the `assets` table predates this field, and adding a
+    // column would break `saveAssets` on every cache already on a device.
+    // Live Photo status only ever comes from a live `inventory()`, so anything
+    // reading assets back out of the cache must not use this.
+    isLivePhoto: false,
   };
 }
 
@@ -138,4 +149,28 @@ export async function pruneMissing(
     }
   });
   return stale.length;
+}
+
+/** Records a disk-space reading. One row per timestamp — a repeat sampledAt overwrites. */
+export async function recordDiskSample(
+  db: SQLite.SQLiteDatabase,
+  sample: DiskSample,
+): Promise<void> {
+  await db.runAsync(
+    'INSERT OR REPLACE INTO disk_history (sampledAt, freeBytes, totalBytes) VALUES (?, ?, ?)',
+    sample.sampledAt,
+    sample.freeBytes,
+    sample.totalBytes,
+  );
+}
+
+/** Disk samples recorded on or after `since` — history.ts's only input. */
+export async function loadDiskSamplesSince(
+  db: SQLite.SQLiteDatabase,
+  since: number,
+): Promise<DiskSample[]> {
+  return db.getAllAsync<DiskSample>(
+    'SELECT sampledAt, freeBytes, totalBytes FROM disk_history WHERE sampledAt >= ? ORDER BY sampledAt ASC',
+    since,
+  );
 }

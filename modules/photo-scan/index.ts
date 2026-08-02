@@ -5,8 +5,13 @@ export {
   findSimilarPairs,
   deleteAssets,
   playVideo,
+  compressVideo,
+  flattenLivePhoto,
+  cancelTransform,
   type PhotoPermission,
   type InventoryResult,
   type SimilarPairsResult,
   type DeleteResult,
+  type CompressionPreset,
+  type TransformResult,
 } from './src/PhotoScan';

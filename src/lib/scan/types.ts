@@ -17,6 +17,11 @@ export type AssetFact = {
    */
   isCameraOriginal: boolean;
   isFavorite: boolean;
+  /**
+   * Exact, not a heuristic — PhotoKit records it at capture. Every Live Photo
+   * carries roughly three seconds of video beside the still.
+   */
+  isLivePhoto: boolean;
 };
 
 export type CategoryId =
