@@ -14,9 +14,11 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "CleanEx looks through your photos to find copies and big files you can safely delete. Your photos never leave your phone.",
-        "LSApplicationQueriesSchemes": ["whatsapp"]
+        "LSApplicationQueriesSchemes": [
+          "whatsapp"
+        ]
       },
-      "buildNumber": "11"
+      "buildNumber": "12"
     },
     "web": {
       "output": "static",
