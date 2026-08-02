@@ -149,6 +149,25 @@ WhatsApp is impossible; reaching the copies it left in Photos is not.
 - **iOS cannot be compiled on this Mac.** The iOS 26.5 SDK is installed but there
   are zero simulator runtimes, so `xcodebuild` reports no destinations.
   `swiftc -parse` checks syntax only; real compilation happens on EAS.
+- **`swiftc -parse` is NOT enough — typecheck against the real SDK instead.**
+  Build 14 failed on EAS with `cannot convert value of type 'Void' to expected
+  argument type 'Int32'` after `swiftc -parse` passed clean, because `-parse`
+  never resolves the PhotoKit/AVFoundation API surface. The device SDK ships
+  with Xcode even with zero simulator runtimes, so this catches it locally in
+  seconds instead of 20 minutes into a build:
+
+  ```bash
+  # Stub ExpoModulesCore (Promise/Module/Name/Function/AsyncFunction), strip the
+  # import, then:
+  swiftc -typecheck -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
+    -target arm64-apple-ios17.0 stubs.swift Module.swift
+  ```
+
+  Ignore errors naming the stubbed symbols; anything mentioning a PhotoKit or
+  AVFoundation type is real. The specific trap that burned build 14:
+  `PHAssetResourceManager.writeData(for:toFile:options:)` returns **Void**,
+  while `requestData(...)` returns a `PHAssetResourceDataRequestID` — so a
+  `writeData` in flight cannot be cancelled by id.
 - **Two `make-room` identifiers are deliberately NOT renamed.** The app became
   CleanEx, but `src/lib/notify/weekly.ts:3`
   (`'make-room-weekly-review'`) is the handle used to cancel a previously

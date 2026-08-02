@@ -568,7 +568,12 @@ public class PhotoScanModule: Module {
     // Copying the resource rather than re-rendering the image is the whole
     // point: the bytes that land in the library are the bytes Apple's camera
     // wrote, EXIF and all. Nothing is recompressed.
-    let requestID = PHAssetResourceManager.default().writeData(
+    // `writeData` returns Void, unlike `requestData` which vends a
+    // PHAssetResourceDataRequestID. So a write in flight cannot be cancelled by
+    // id — cancellation is caught by the token check in the completion handler
+    // below and between items in the batch loop. Writing a single still is fast
+    // enough that mid-write cancellation would not buy anything.
+    PHAssetResourceManager.default().writeData(
       for: still,
       toFile: output,
       options: options
@@ -593,8 +598,6 @@ public class PhotoScanModule: Module {
         outcome: outcome
       )
     }
-
-    Self.job.track(resourceRequestID: requestID, token: token)
   }
 
   private static func flattenLivePhotos(assetIds: [String], promise: Promise) {
@@ -838,7 +841,10 @@ public class PhotoScanModule: Module {
     let semaphore = DispatchSemaphore(value: 0)
     var failure: Error?
 
-    let requestID = PHAssetResourceManager.default().writeData(
+    // See the note in flattenLivePhoto: `writeData` returns Void, so there is
+    // no id to cancel. The staging loop checks the token between items, which
+    // is where a cancel actually needs to land.
+    PHAssetResourceManager.default().writeData(
       for: resource,
       toFile: url,
       options: options
@@ -846,9 +852,7 @@ public class PhotoScanModule: Module {
       failure = error
       semaphore.signal()
     }
-    Self.job.track(resourceRequestID: requestID, token: token)
     semaphore.wait()
-    Self.job.track(resourceRequestID: 0, token: token)
 
     return failure == nil
   }
