@@ -1,4 +1,19 @@
-"""Generate CleanEx's app icon: a breaker switch thrown to ON.
+"""Generate CleanEx's app icon: the capacity gauge, draining.
+
+The app's own signature object rather than a category metaphor. DESIGN.md
+specifies the capacity reading as "a tick-marked bar, not a ring — a panel
+gauge reads in ticks", and that strip is the first thing a user sees inside the
+app, so the icon is the product's face rather than a picture of cleaning.
+
+Four ticks, not twenty-four: at 60pt on a home screen only chunky shapes
+survive, and a fine-grained gauge collapses into a grey smear. One graphite
+tick still used, one amber coming back, two outlined and free — a gauge
+draining left to right.
+
+Bone ground rather than graphite. A home screen is a wall of saturated and dark
+icons; an off-white square carrying one precise instrument mark reads as
+measuring equipment, which is both more findable and truer to DESIGN.md's
+light-first stance.
 
 Pure stdlib — renders at 4x and box-downsamples for antialiasing, then encodes
 a PNG by hand. No dependencies, fully deterministic.
@@ -28,28 +43,67 @@ def rounded_rect(px, w, h, x0, y0, x1, y1, r, color):
                 px[y * w + x] = color
 
 
+# Geometry in 1024-space.
+#
+# The vessel is portrait at roughly 1:2.2 — phone proportions. That matters:
+# the same gauge drawn as a horizontal track reads as a battery, which is the
+# wrong promise for a storage app. Upright, filled from the bottom, it reads as
+# "your phone, this full", which is the mental model the user already has.
+BODY_L, BODY_R = 300, 724
+BODY_T, BODY_B = 104, 920
+BODY_RAD = 84
+WALL = 42  # vessel wall thickness
+
+PAD = 26  # breathing room between wall and segments
+SEG_GAP = 20
+SEG_RAD = 18
+
+
 def render(size):
     w = h = size * SS
-    px = [GRAPHITE] * (w * h)
+    px = [BONE] * (w * h)  # bone ground, full bleed — iOS masks the corners
 
     s = SS * size / 1024.0  # scale factor from 1024-space
 
     def R(x0, y0, x1, y1, r, color):
         rounded_rect(px, w, h, x0 * s, y0 * s, x1 * s, y1 * s, r * s, color)
 
-    # Bone plate — the breaker's face, filling most of the icon
-    R(232, 140, 792, 884, 72, BONE)
+    # The vessel: draw the graphite body, then knock the middle back out to
+    # bone so the wall is perfectly even on all four sides.
+    R(BODY_L, BODY_T, BODY_R, BODY_B, BODY_RAD, GRAPHITE)
+    R(
+        BODY_L + WALL,
+        BODY_T + WALL,
+        BODY_R - WALL,
+        BODY_B - WALL,
+        BODY_RAD - WALL / 2,
+        BONE,
+    )
 
-    # The switch window, cut into the plate
-    R(330, 244, 694, 790, 44, GRAPHITE)
+    # Four level segments, stacked and filling from the bottom the way a tank
+    # does. Two filled, two left bone — the phone as it is *after* the app has
+    # done its job, not as it is when the user opens it in a panic.
+    seg_l = BODY_L + WALL + PAD
+    seg_r = BODY_R - WALL - PAD
+    top = BODY_T + WALL + PAD
+    bottom = BODY_B - WALL - PAD
+    seg_h = (bottom - top - 3 * SEG_GAP) / 4
 
-    # The flag, thrown down = ON. Sized to carry the icon at 60pt, where the
-    # plate and window collapse to shapes and only the amber still reads.
-    R(366, 470, 658, 754, 30, AMBER)
+    def seg(i):  # 0 is the bottom of the stack
+        b = bottom - i * (seg_h + SEG_GAP)
+        return b - seg_h, b
 
-    # The finger ridge across the toggle — the one detail that says "switch"
-    # rather than "fill level" at medium size.
-    R(410, 556, 614, 578, 11, GRAPHITE)
+    # Segment 0 — space still in use.
+    t, b = seg(0)
+    R(seg_l, t, seg_r, b, SEG_RAD, GRAPHITE)
+
+    # Segment 1 — the space coming back, sitting at the waterline where it is
+    # about to leave. The only saturated mark in the icon, so it is the last
+    # thing to survive as the icon shrinks.
+    t, b = seg(1)
+    R(seg_l, t, seg_r, b, SEG_RAD, AMBER)
+
+    # Segments 2 and 3 stay bone: free space, drawn by not drawing.
 
     # Downsample
     out = bytearray()
