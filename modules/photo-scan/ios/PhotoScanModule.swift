@@ -200,6 +200,27 @@ public class PhotoScanModule: Module {
       Self.flattenLivePhoto(assetId: assetId, promise: promise)
     }
 
+    /// Flattens many Live Photos behind **one** system confirmation sheet.
+    ///
+    /// This exists because the sheet is raised per change block, not per asset:
+    /// looping `flattenLivePhoto` over a library would ask a frightened
+    /// 70-year-old to confirm thousands of times. Every still is copied out
+    /// first, then all the replacements are created and all the originals
+    /// deleted inside a single block.
+    ///
+    /// One call is always exactly one sheet. It is not always every id: staging
+    /// writes a full copy of each still to disk before anything is deleted, and
+    /// on a phone that is by definition short of space that has to be capped.
+    /// Ids past the cap come back in `skippedIds` for the caller to pass in
+    /// again — the caller owns the loop, and therefore owns how many times the
+    /// user is asked.
+    ///
+    /// Assets that cannot be prepared are simply left out of the block rather
+    /// than failing the whole batch, and come back in `failedIds`.
+    AsyncFunction("flattenLivePhotos") { (assetIds: [String], promise: Promise) in
+      Self.flattenLivePhotos(assetIds: assetIds, promise: promise)
+    }
+
     /// Stops the transform that is running, if any. Resolves `false` when there
     /// was nothing to stop.
     ///
@@ -272,6 +293,22 @@ public class PhotoScanModule: Module {
   /// Vision feature print distance below which two images are "similar".
   /// 0.35 is the commonly used starting point; tune against real results.
   private static let similarityThreshold: Float = 0.35
+
+  /// Ceiling on the stills one batch stages to disk before its change block
+  /// runs. Each staged still is a second full copy of one already in the
+  /// library, so a batch costs this much extra space for the length of the
+  /// transaction — on a phone that is already full, an uncapped batch would
+  /// fail for exactly the users the app is for.
+  ///
+  /// The cost of the cap is more confirmation sheets: one per call, and a
+  /// library needing more than this takes more than one call. ~512 MB is around
+  /// 200 typical stills. Unmeasured — the right value depends on real still
+  /// sizes and on how much headroom a full phone actually has.
+  private static let maxStagedBytes: Int64 = 512 * 1024 * 1024
+
+  /// Second cap, on count rather than size, so a batch of very small stills
+  /// still cannot grow into thousands of PhotoKit requests in one block.
+  private static let maxBatchAssets = 400
 
   // MARK: - Helpers
 
@@ -360,6 +397,10 @@ public class PhotoScanModule: Module {
 
   /// The one transform allowed to be in flight, and the handles to cancel it.
   private static let job = TransformJob()
+
+  /// Where a batch stages its stills. Its own queue because staging waits on
+  /// each copy in turn, and the module's queue has `cancelTransform` on it.
+  private static let batchQueue = DispatchQueue(label: "PhotoScan.transformBatch")
 
   private static func compressVideo(assetId: String, preset: String, promise: Promise) {
     let outcome = TransformOutcome(promise)
@@ -556,6 +597,278 @@ public class PhotoScanModule: Module {
     Self.job.track(resourceRequestID: requestID, token: token)
   }
 
+  private static func flattenLivePhotos(assetIds: [String], promise: Promise) {
+    let outcome = TransformOutcome(promise)
+
+    // The caller passing the same asset twice must not stage it twice and,
+    // much worse, must not put the same original into the delete list twice.
+    var seen = Set<String>()
+    let ids = assetIds.filter { seen.insert($0).inserted }
+
+    guard !ids.isEmpty else {
+      outcome.resolveBatch(converted: [], oldBytes: 0, newBytes: 0, failedIds: [], skippedIds: [])
+      return
+    }
+
+    guard let token = Self.job.begin() else {
+      // Nothing was attempted, so every id is still worth retrying.
+      outcome.resolveBatch(converted: [], oldBytes: 0, newBytes: 0, failedIds: [], skippedIds: ids)
+      return
+    }
+
+    // Staging blocks on each write in turn, so it gets its own queue. Doing it
+    // on the module's queue would block `cancelTransform` behind the very wait
+    // it exists to escape.
+    Self.batchQueue.async {
+      var byId: [String: PHAsset] = [:]
+      let fetched = PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
+      fetched.enumerateObjects { asset, _, _ in byId[asset.localIdentifier] = asset }
+
+      var staged: [StagedStill] = []
+      var stagedBytes: Int64 = 0
+      var failed: [String] = []
+      var skipped: [String] = []
+
+      for (index, id) in ids.enumerated() {
+        // Both exits leave everything not yet reached retryable.
+        if Self.job.isCancelled(token: token) {
+          skipped.append(contentsOf: ids[index...])
+          break
+        }
+        if staged.count >= Self.maxBatchAssets || stagedBytes >= Self.maxStagedBytes {
+          skipped.append(contentsOf: ids[index...])
+          break
+        }
+
+        guard let asset = byId[id],
+              asset.mediaType == .image,
+              asset.mediaSubtypes.contains(.photoLive) else {
+          failed.append(id)
+          continue
+        }
+
+        let resources = PHAssetResource.assetResources(for: asset)
+        guard let still = resources.first(where: { $0.type == .fullSizePhoto })
+                ?? resources.first(where: { $0.type == .photo }) else {
+          failed.append(id)
+          continue
+        }
+
+        let oldBytes = Self.measuredBytes(resources)
+        guard oldBytes > 0 else {
+          failed.append(id)
+          continue
+        }
+
+        let ext = (still.originalFilename as NSString).pathExtension
+        let url = Self.temporaryURL(withExtension: ext.isEmpty ? "heic" : ext)
+        guard Self.writeResource(still, to: url, token: token) else {
+          try? FileManager.default.removeItem(at: url)
+          failed.append(id)
+          continue
+        }
+
+        let newBytes = Self.fileBytes(url)
+        guard newBytes > 0 else {
+          try? FileManager.default.removeItem(at: url)
+          failed.append(id)
+          continue
+        }
+
+        staged.append(StagedStill(
+          assetId: id,
+          asset: asset,
+          url: url,
+          filename: still.originalFilename,
+          oldBytes: oldBytes,
+          newBytes: newBytes,
+          albums: Self.editableAlbums(containing: asset)
+        ))
+        stagedBytes += newBytes
+      }
+
+      guard !staged.isEmpty, !Self.job.isCancelled(token: token) else {
+        for item in staged {
+          try? FileManager.default.removeItem(at: item.url)
+          skipped.append(item.assetId)
+        }
+        Self.job.finish(token: token)
+        outcome.resolveBatch(
+          converted: [],
+          oldBytes: 0,
+          newBytes: 0,
+          failedIds: failed,
+          skippedIds: skipped
+        )
+        return
+      }
+
+      Self.applyBatch(
+        staged: staged,
+        failedIds: failed,
+        skippedIds: skipped,
+        token: token,
+        outcome: outcome
+      )
+    }
+  }
+
+  /// Creates every replacement and deletes every original in one change block.
+  ///
+  /// The block is all-or-nothing, which is what makes one sheet honest: either
+  /// the whole batch happens or none of it does, so there is never a half-state
+  /// where some originals are gone and their replacements are not. Assets that
+  /// could not be staged never enter the block at all, which is how a batch
+  /// proceeds with the 200 that worked instead of failing all 500.
+  private static func applyBatch(
+    staged: [StagedStill],
+    failedIds: [String],
+    skippedIds: [String],
+    token: Int,
+    outcome: TransformOutcome
+  ) {
+    var placeholders: [String: PHObjectPlaceholder] = [:]
+
+    PHPhotoLibrary.shared().performChanges {
+      var deletable: [PHAsset] = []
+
+      for item in staged {
+        let creation = PHAssetCreationRequest.forAsset()
+
+        let resourceOptions = PHAssetResourceCreationOptions()
+        resourceOptions.shouldMoveFile = true
+        resourceOptions.originalFilename = item.filename
+        creation.addResource(with: .photo, fileURL: item.url, options: resourceOptions)
+
+        creation.creationDate = item.asset.creationDate
+        creation.location = item.asset.location
+        creation.isFavorite = item.asset.isFavorite
+
+        // No placeholder means no replacement, and an original with no
+        // replacement must not be in the delete list. This is the one line
+        // standing between a bulk action and losing someone's photos.
+        guard let created = creation.placeholderForCreatedAsset else { continue }
+        placeholders[item.assetId] = created
+        deletable.append(item.asset)
+
+        for album in item.albums {
+          PHAssetCollectionChangeRequest(for: album)?.addAssets([created] as NSArray)
+        }
+      }
+
+      if !deletable.isEmpty {
+        PHAssetChangeRequest.deleteAssets(deletable as NSArray)
+      }
+    } completionHandler: { success, _ in
+      for item in staged {
+        try? FileManager.default.removeItem(at: item.url)
+      }
+      Self.job.finish(token: token)
+
+      guard success else {
+        // Cancelling the sheet is a decision, not a failure: nothing changed
+        // and every one of these is still worth offering again.
+        var skipped = skippedIds
+        for item in staged { skipped.append(item.assetId) }
+        outcome.resolveBatch(
+          converted: [],
+          oldBytes: 0,
+          newBytes: 0,
+          failedIds: failedIds,
+          skippedIds: skipped
+        )
+        return
+      }
+
+      var newIds: [String] = []
+      for item in staged {
+        if let id = placeholders[item.assetId]?.localIdentifier { newIds.append(id) }
+      }
+      let stored = Self.measuredBytes(withLocalIdentifiers: newIds)
+
+      var converted: [[String: Any]] = []
+      var oldTotal: Int64 = 0
+      var newTotal: Int64 = 0
+      var missed = failedIds
+
+      for item in staged {
+        guard let newId = placeholders[item.assetId]?.localIdentifier else {
+          missed.append(item.assetId)
+          continue
+        }
+        // Both figures measured, never estimated: the original from its
+        // resources, the replacement from what the library says it stored,
+        // falling back to the size of the file handed to it.
+        let newBytes = stored[newId] ?? item.newBytes
+        oldTotal += item.oldBytes
+        newTotal += newBytes
+        converted.append([
+          "assetId": item.assetId,
+          "newAssetId": newId,
+          "oldBytes": item.oldBytes,
+          "newBytes": newBytes,
+        ])
+      }
+
+      outcome.resolveBatch(
+        converted: converted,
+        oldBytes: oldTotal,
+        newBytes: newTotal,
+        failedIds: missed,
+        skippedIds: skippedIds
+      )
+    }
+  }
+
+  /// Copies one resource to disk and waits for it.
+  ///
+  /// Blocking is deliberate: it keeps staging a plain readable loop instead of
+  /// a callback chain, and it runs on `batchQueue` where blocking costs
+  /// nothing. The wait is unbounded on purpose too — it is the iCloud fetch,
+  /// which has no timeout — and `cancelTransform` is what ends it, by
+  /// cancelling the tracked request so PhotoKit calls back with an error.
+  private static func writeResource(
+    _ resource: PHAssetResource,
+    to url: URL,
+    token: Int
+  ) -> Bool {
+    let options = PHAssetResourceRequestOptions()
+    options.isNetworkAccessAllowed = true
+
+    let semaphore = DispatchSemaphore(value: 0)
+    var failure: Error?
+
+    let requestID = PHAssetResourceManager.default().writeData(
+      for: resource,
+      toFile: url,
+      options: options
+    ) { error in
+      failure = error
+      semaphore.signal()
+    }
+    Self.job.track(resourceRequestID: requestID, token: token)
+    semaphore.wait()
+    Self.job.track(resourceRequestID: 0, token: token)
+
+    return failure == nil
+  }
+
+  /// The user's own albums holding this asset that will accept new content.
+  /// Smart albums are left out because they re-derive themselves; albums that
+  /// refuse edits — iCloud shared albums, mostly — cannot be carried at all.
+  private static func editableAlbums(containing asset: PHAsset) -> [PHAssetCollection] {
+    let containing = PHAssetCollection.fetchAssetCollectionsContaining(
+      asset,
+      with: .album,
+      options: nil
+    )
+    var albums: [PHAssetCollection] = []
+    containing.enumerateObjects { album, _, _ in
+      if album.canPerform(.addContent) { albums.append(album) }
+    }
+    return albums
+  }
+
   /// The create-then-delete half both transforms share: put the produced file
   /// in the library carrying the original's identity, then remove the original.
   ///
@@ -575,20 +888,8 @@ public class PhotoScanModule: Module {
     outcome: TransformOutcome
   ) {
     // A created asset belongs to no album, so album membership only survives if
-    // it is re-applied by hand. `fetchAssetCollectionsContaining` finds the
-    // user's own albums; smart albums are excluded because they re-evaluate
-    // themselves from their own rules, and any album that refuses edits (an
-    // iCloud shared album, most often) is skipped rather than failing the whole
-    // transform.
-    let containing = PHAssetCollection.fetchAssetCollectionsContaining(
-      original,
-      with: .album,
-      options: nil
-    )
-    var albums: [PHAssetCollection] = []
-    containing.enumerateObjects { album, _, _ in
-      if album.canPerform(.addContent) { albums.append(album) }
-    }
+    // it is re-applied by hand.
+    let albums = Self.editableAlbums(containing: original)
 
     var placeholder: PHObjectPlaceholder?
 
@@ -681,6 +982,17 @@ public class PhotoScanModule: Module {
     return measuredBytes(of: asset)
   }
 
+  /// One fetch for a whole batch rather than one per asset.
+  private static func measuredBytes(withLocalIdentifiers ids: [String]) -> [String: Int64] {
+    guard !ids.isEmpty else { return [:] }
+    var sizes: [String: Int64] = [:]
+    let fetched = PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
+    fetched.enumerateObjects { asset, _, _ in
+      sizes[asset.localIdentifier] = measuredBytes(of: asset)
+    }
+    return sizes
+  }
+
   private static func fileBytes(_ url: URL) -> Int64 {
     let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
     return (attributes?[.size] as? NSNumber)?.int64Value ?? 0
@@ -694,6 +1006,18 @@ public class PhotoScanModule: Module {
 }
 
 // MARK: - Transform plumbing
+
+/// One Live Photo copied out of the library and waiting for the change block,
+/// together with everything needed to rebuild its identity afterwards.
+private struct StagedStill {
+  let assetId: String
+  let asset: PHAsset
+  let url: URL
+  let filename: String
+  let oldBytes: Int64
+  let newBytes: Int64
+  let albums: [PHAssetCollection]
+}
 
 /// Resolves a transform's promise at most once.
 ///
@@ -711,14 +1035,6 @@ private final class TransformOutcome {
   }
 
   func resolve(ok: Bool, newAssetId: String?, oldBytes: Int64, newBytes: Int64) {
-    lock.lock()
-    if sent {
-      lock.unlock()
-      return
-    }
-    sent = true
-    lock.unlock()
-
     var payload: [String: Any] = [
       "ok": ok,
       "oldBytes": oldBytes,
@@ -728,6 +1044,39 @@ private final class TransformOutcome {
     if let newAssetId {
       payload["newAssetId"] = newAssetId
     }
+    send(payload)
+  }
+
+  /// `ok` is "did anything actually change", so a batch where every id failed
+  /// is not ok even though the change block never ran. The totals cover the
+  /// converted assets only — they are a receipt, not a forecast.
+  func resolveBatch(
+    converted: [[String: Any]],
+    oldBytes: Int64,
+    newBytes: Int64,
+    failedIds: [String],
+    skippedIds: [String]
+  ) {
+    send([
+      "ok": !converted.isEmpty,
+      "convertedCount": converted.count,
+      "oldBytes": oldBytes,
+      "newBytes": newBytes,
+      "converted": converted,
+      "failedIds": failedIds,
+      "skippedIds": skippedIds,
+    ])
+  }
+
+  private func send(_ payload: [String: Any]) {
+    lock.lock()
+    if sent {
+      lock.unlock()
+      return
+    }
+    sent = true
+    lock.unlock()
+
     promise.resolve(payload)
   }
 

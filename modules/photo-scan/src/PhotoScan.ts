@@ -42,6 +42,44 @@ export type TransformResult = {
   newBytes: number;
 };
 
+/** One asset that was actually replaced, with both measured byte counts. */
+export type BatchTransformItem = {
+  /** The asset that was replaced. It is now in Recently Deleted. */
+  assetId: string;
+  newAssetId: string;
+  oldBytes: number;
+  newBytes: number;
+};
+
+/**
+ * The result of one bulk transform, which is also exactly one system
+ * confirmation sheet.
+ *
+ * `ok` means at least one asset was replaced. The totals cover the converted
+ * assets only and are measured, never estimated.
+ *
+ * The three id buckets are exhaustive over what was passed in, and the split
+ * matters:
+ *
+ * - `converted` — done.
+ * - `failedIds` — could not be prepared at all: not a Live Photo, no longer in
+ *   the library, unmeasurable, or its data could not be fetched. Calling again
+ *   with these is unlikely to help.
+ * - `skippedIds` — never applied, for a reason that has nothing to do with the
+ *   asset: the batch hit its staging ceiling, the user cancelled, or the
+ *   confirmation sheet was dismissed. **Call again with these** — that is how a
+ *   library larger than one batch gets finished, one sheet at a time.
+ */
+export type BatchTransformResult = {
+  ok: boolean;
+  convertedCount: number;
+  oldBytes: number;
+  newBytes: number;
+  converted: BatchTransformItem[];
+  failedIds: string[];
+  skippedIds: string[];
+};
+
 type NativeModule = {
   getPhotoPermission(): PhotoPermission;
   requestPhotoPermission(): Promise<PhotoPermission>;
@@ -51,6 +89,7 @@ type NativeModule = {
   playVideo(assetId: string): Promise<boolean>;
   compressVideo(assetId: string, preset: CompressionPreset): Promise<TransformResult>;
   flattenLivePhoto(assetId: string): Promise<TransformResult>;
+  flattenLivePhotos(assetIds: string[]): Promise<BatchTransformResult>;
   cancelTransform(): Promise<boolean>;
 };
 
@@ -122,6 +161,28 @@ export async function compressVideo(
 export async function flattenLivePhoto(assetId: string): Promise<TransformResult> {
   const result = await native.flattenLivePhoto(assetId);
   return { ...result, newAssetId: result.newAssetId ?? null };
+}
+
+/**
+ * Flattens many Live Photos behind **one** system confirmation sheet.
+ *
+ * Use this, not a loop over {@link flattenLivePhoto}: iOS raises its delete
+ * confirmation once per batch, so looping the single-asset version over a
+ * library asks the user to confirm thousands of times. Nobody wants to review
+ * 5,000 Live Photos — one number, one button, one confirmation.
+ *
+ * One call is one sheet, but not necessarily every id. Each still is copied to
+ * disk before anything is deleted, and that staging is capped so a batch cannot
+ * fill up an already-full phone. Whatever did not fit comes back in
+ * `skippedIds`, and calling again with those finishes the job — so the number
+ * of sheets the user sees is decided here, by how the caller loops, not
+ * natively.
+ *
+ * Assets that cannot be prepared are left out of the batch rather than failing
+ * it, so 200 good ones still convert when 300 are unusable.
+ */
+export function flattenLivePhotos(assetIds: string[]): Promise<BatchTransformResult> {
+  return native.flattenLivePhotos(assetIds);
 }
 
 /**

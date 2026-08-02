@@ -13,6 +13,7 @@ type Row = {
   subtype: string;
   isCameraOriginal: number;
   isFavorite: number;
+  isLivePhoto: number;
 };
 
 export async function openCache(): Promise<SQLite.SQLiteDatabase> {
@@ -29,6 +30,7 @@ export async function openCache(): Promise<SQLite.SQLiteDatabase> {
       subtype          TEXT    NOT NULL,
       isCameraOriginal INTEGER NOT NULL,
       isFavorite       INTEGER NOT NULL,
+      isLivePhoto      INTEGER NOT NULL DEFAULT 0,
       clusterId        TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_assets_created ON assets(createdAt);
@@ -38,7 +40,35 @@ export async function openCache(): Promise<SQLite.SQLiteDatabase> {
       totalBytes INTEGER NOT NULL
     );
   `);
+  await addMissingColumns(db);
   return db;
+}
+
+/**
+ * Brings a cache written by an older build up to the current shape.
+ *
+ * `CREATE TABLE IF NOT EXISTS` only describes a *new* database — every phone
+ * that has already run the app keeps the table it made first, so a column added
+ * above would exist for new installs and be missing for everyone else, and the
+ * first `saveAssets` would throw. SQLite has no `ADD COLUMN IF NOT EXISTS`, so
+ * the existing columns are read and the missing ones added.
+ *
+ * The alternative, bumping `SCAN_SCHEMA_VERSION`, changes the database
+ * filename: it orphans the old file on disk rather than replacing it, which
+ * wastes storage in a storage app, and throws away a scan the user already paid
+ * for. Additive migration is the cheaper truth.
+ *
+ * `isLivePhoto` defaults to 0, so rows cached before it existed read as "not a
+ * Live Photo" until the next scan overwrites them — which is why `saveAssets`
+ * updates it on conflict rather than only on insert.
+ */
+async function addMissingColumns(db: SQLite.SQLiteDatabase): Promise<void> {
+  const columns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(assets)');
+  const present = new Set(columns.map((column) => column.name));
+
+  if (!present.has('isLivePhoto')) {
+    await db.execAsync('ALTER TABLE assets ADD COLUMN isLivePhoto INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 export async function loadCached(db: SQLite.SQLiteDatabase): Promise<AssetFact[]> {
@@ -69,11 +99,7 @@ function toAssetFact(row: Row): AssetFact {
     subtype: row.subtype as AssetSubtype,
     isCameraOriginal: row.isCameraOriginal === 1,
     isFavorite: row.isFavorite === 1,
-    // Not persisted: the `assets` table predates this field, and adding a
-    // column would break `saveAssets` on every cache already on a device.
-    // Live Photo status only ever comes from a live `inventory()`, so anything
-    // reading assets back out of the cache must not use this.
-    isLivePhoto: false,
+    isLivePhoto: row.isLivePhoto === 1,
   };
 }
 
@@ -85,11 +111,12 @@ export async function saveAssets(
 
   const statement = await db.prepareAsync(`
     INSERT INTO assets
-      (id, sizeBytes, width, height, durationSeconds, createdAt, subtype, isCameraOriginal, isFavorite)
-    VALUES ($id, $size, $w, $h, $dur, $created, $subtype, $camera, $fav)
+      (id, sizeBytes, width, height, durationSeconds, createdAt, subtype, isCameraOriginal, isFavorite, isLivePhoto)
+    VALUES ($id, $size, $w, $h, $dur, $created, $subtype, $camera, $fav, $live)
     ON CONFLICT(id) DO UPDATE SET
-      sizeBytes  = excluded.sizeBytes,
-      isFavorite = excluded.isFavorite
+      sizeBytes   = excluded.sizeBytes,
+      isFavorite  = excluded.isFavorite,
+      isLivePhoto = excluded.isLivePhoto
   `);
   try {
     await db.withTransactionAsync(async () => {
@@ -104,6 +131,7 @@ export async function saveAssets(
           $subtype: a.subtype,
           $camera: a.isCameraOriginal ? 1 : 0,
           $fav: a.isFavorite ? 1 : 0,
+          $live: a.isLivePhoto ? 1 : 0,
         });
       }
     });

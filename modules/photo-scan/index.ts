@@ -7,6 +7,7 @@ export {
   playVideo,
   compressVideo,
   flattenLivePhoto,
+  flattenLivePhotos,
   cancelTransform,
   type PhotoPermission,
   type InventoryResult,
@@ -14,4 +15,6 @@ export {
   type DeleteResult,
   type CompressionPreset,
   type TransformResult,
+  type BatchTransformItem,
+  type BatchTransformResult,
 } from './src/PhotoScan';
